@@ -163,6 +163,23 @@ export default function SettingsPage() {
             />
           </button>
         </div>
+
+        {/* 密碼雜湊強度 */}
+        <div className="border-b pb-4">
+          <label className="font-medium block mb-1">密碼雜湊強度（bcrypt cost factor）</label>
+          <p className="text-sm text-gray-500 mb-2">數字越大越安全但越慢，建議 10-14，最高 14</p>
+          <input
+            type="number"
+            min={10}
+            max={14}
+            value={settings.passwordCostFactor}
+            onChange={(e) => {
+              const v = Math.min(14, Math.max(10, Number(e.target.value)));
+              setSettings({ ...settings, passwordCostFactor: v });
+            }}
+            className="w-full border rounded px-3 py-2"
+          />
+        </div>
       </div>
 
       {/* 儲存按鈕 */}

@@ -6,6 +6,7 @@ export interface Settings {
   semester: number;
   copyrightNotice: boolean;
   sponsorAdEnabled: boolean;
+  passwordCostFactor: number;
 }
 
 export const defaultSettings: Settings = {
@@ -16,4 +17,5 @@ export const defaultSettings: Settings = {
   semester: 1,
   copyrightNotice: true,
   sponsorAdEnabled: false,
+  passwordCostFactor: 12,
 };

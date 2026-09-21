@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
@@ -8,8 +9,28 @@ import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
 
 export default function Home() {
+  const router = useRouter();
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [role, setRole] = useState<"student" | "staff" | "admin">("student");
+  const [account, setAccount] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    const session = localStorage.getItem("user_session");
+    if (session) {
+      try {
+        const user = JSON.parse(session);
+        if (user.role === "admin") {
+          router.push("/admin");
+          return;
+        }
+      } catch {}
+    }
+    setCheckingSession(false);
+  }, [router]);
 
   useEffect(() => {
     async function loadSettings() {
@@ -25,6 +46,71 @@ export default function Home() {
     }
     loadSettings();
   }, []);
+
+  async function handleLogin() {
+    if (!account || !password) {
+      setError("請輸入帳號與密碼");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account, password }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setError(data.message);
+        setLoading(false);
+        return;
+      }
+
+      localStorage.setItem(
+        "user_session",
+        JSON.stringify({
+          ...data.user,
+          role: "admin",
+          loginTime: Date.now(),
+        })
+      );
+
+      router.push("/admin");
+    } catch {
+      setError("系統錯誤，請稍後再試");
+      setLoading(false);
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      handleLogin();
+    }
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">載入中...</p>
+      </div>
+    );
+  }
+
+  if (!settings.systemEnabled) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-2">系統目前暫停服務</h1>
+          <p className="text-gray-500">請稍後再試</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-white px-4 pt-[10px]">
@@ -86,16 +172,30 @@ export default function Home() {
         <input
           type="text"
           placeholder="帳號 / 電子郵件"
+          value={account}
+          onChange={(e) => setAccount(e.target.value)}
+          onKeyDown={handleKeyDown}
           className="w-full border border-gray-300 rounded px-4 py-3 mb-4 text-gray-700 placeholder-gray-400"
         />
         <input
           type="password"
           placeholder="密碼"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={handleKeyDown}
           className="w-full border border-gray-300 rounded px-4 py-3 mb-4 text-gray-700 placeholder-gray-400"
         />
 
-        <button className="w-full bg-black text-white rounded py-3 font-medium hover:bg-gray-800 transition-colors">
-          登入
+        {error && (
+          <p className="text-red-500 text-sm text-center mb-4">{error}</p>
+        )}
+
+        <button
+          onClick={handleLogin}
+          disabled={loading}
+          className="w-full bg-black text-white rounded py-3 font-medium hover:bg-gray-800 transition-colors disabled:opacity-50"
+        >
+          {loading ? "登入中..." : "登入"}
         </button>
 
         <p className="text-center text-sm text-gray-500 mt-3 cursor-pointer hover:underline">
@@ -125,7 +225,7 @@ export default function Home() {
               fill="#FBBC05"
             />
             <path
-              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.33-4.53 6.16-4.53z"
               fill="#EA4335"
             />
           </svg>

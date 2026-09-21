@@ -14,8 +14,10 @@
   "license": "ISC",
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
+    "bcryptjs": "^3.0.3",
     "firebase": "^12.19.0",
     "next": "^16.3.5",
     "postcss": "^8.5.28",

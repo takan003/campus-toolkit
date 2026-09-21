@@ -1,0 +1,137 @@
+"use client";
+
+import { useState } from "react";
+
+export default function SetupPage() {
+  const [email, setEmail] = useState("");
+  const [account, setAccount] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  async function handleSubmit() {
+    setError("");
+    setSuccess("");
+
+    if (!email || !account || !password) {
+      setError("請填寫完整資訊");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("兩次密碼不一致");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("密碼至少 6 個字元");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/admin/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, account, password, displayName }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setError(data.message);
+        setLoading(false);
+        return;
+      }
+
+      setSuccess("管理員建立成功！3 秒後導向登入頁...");
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 3000);
+    } catch {
+      setError("系統錯誤，請稍後再試");
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold mb-2">數位校園工具箱</h1>
+          <p className="text-gray-500">首次設定 - 建立管理員帳號</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">電子郵件 *</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              placeholder="admin@example.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">登入帳號 *</label>
+            <input
+              type="text"
+              value={account}
+              onChange={(e) => setAccount(e.target.value)}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              placeholder="admin"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">顯示名稱</label>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+              placeholder="系統管理員"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">密碼 *</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">確認密碼 *</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full border border-gray-300 rounded px-3 py-2"
+            />
+          </div>
+
+          {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+          {success && <p className="text-green-500 text-sm text-center">{success}</p>}
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full bg-black text-white py-3 rounded font-medium hover:bg-gray-800 disabled:opacity-50"
+          >
+            {loading ? "建立中..." : "建立管理員"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

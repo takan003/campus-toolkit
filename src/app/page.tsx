@@ -5,6 +5,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import Copyright from "@/components/Copyright";
+import AdSense from "@/components/AdSense";
 
 export default function Home() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
@@ -147,6 +148,13 @@ export default function Home() {
           登入
         </button>
       </div>
+
+      {/* 廣告區域 */}
+      {settings.sponsorAdEnabled && (
+        <div className="w-full max-w-md mt-8">
+          <AdSense />
+        </div>
+      )}
 
       {/* 版權宣告 */}
       <div className="w-full max-w-md mt-8">

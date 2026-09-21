@@ -279,6 +279,22 @@ export default function Home() {
       <div className="w-full max-w-md mt-8">
         <Copyright mode={settings.copyrightNotice ? "啟用" : "關閉"} />
       </div>
+
+      {/* 登入Loading遮罩 */}
+      {loading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(3px)" }}>
+          <div className="bg-white rounded-2xl p-8 text-center space-y-4 shadow-lg">
+            <div className="flex justify-center">
+              <svg className="animate-spin" viewBox="0 0 24 24" width={40} height={40} fill="none" stroke="#333" strokeWidth={2} strokeLinecap="round">
+                <circle cx={12} cy={12} r={10} stroke="#e5e7eb" strokeWidth={2} fill="none" />
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth={2} />
+              </svg>
+            </div>
+            <p className="text-base font-semibold text-gray-800">登入中，請稍候…</p>
+            <p className="text-xs text-gray-400">正在驗證身分</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

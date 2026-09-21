@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
+import Copyright from "@/components/Copyright";
 
 export default function Home() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
@@ -147,10 +148,9 @@ export default function Home() {
         </button>
       </div>
 
-      {/* 頁尾廣告區域 */}
-      <div className="w-full max-w-md mt-8 text-center">
-        <p className="text-sm text-gray-400">&gt;&gt;以下廣告由Google AdSense推播&lt;&lt;</p>
-        {/* 廣告版位 */}
+      {/* 版權宣告 */}
+      <div className="w-full max-w-md mt-8">
+        <Copyright mode={settings.copyrightNotice ? "啟用" : "關閉"} />
       </div>
     </div>
   );

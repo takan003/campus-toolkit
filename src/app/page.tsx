@@ -27,7 +27,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white px-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white px-4 pt-[10px]">
       {/* 標題區域 */}
       <div className="text-center mb-6">
         <h1 className="text-4xl font-bold mb-2">數位校園工具箱</h1>

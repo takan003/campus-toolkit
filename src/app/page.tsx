@@ -2,9 +2,9 @@ export default function Home() {
   return (
     <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
       <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <h1 className="text-4xl font-bold">數位校園共享站</h1>
+        <h1 className="text-4xl font-bold">數位校園工具箱</h1>
         <p className="text-lg text-gray-600">
-          整合校園資訊、選課、公告、社團等功能的綜合性校園入口網站
+          整合校園資訊、選課、公告、社團等功能的綜合性校園工具平台
         </p>
         <div className="flex gap-4 items-center flex-col sm:flex-row">
           <button className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5">
@@ -17,7 +17,7 @@ export default function Home() {
       </main>
       <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
         <p className="text-sm text-gray-500">
-          © 2026 數位校園共享站. All rights reserved.
+          © 2026 數位校園工具箱. All rights reserved.
         </p>
       </footer>
     </div>

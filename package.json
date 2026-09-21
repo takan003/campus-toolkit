@@ -1,7 +1,7 @@
 {
   "name": "campus-toolkit",
   "version": "1.0.0",
-  "description": "整合校園資訊、選課、公告、社團等功能的綜合性校園入口網站。",
+  "description": "整合校園資訊、選課、公告、社團等功能的綜合性校園工具平台。",
   "private": true,
   "scripts": {
     "dev": "next dev",

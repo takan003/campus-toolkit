@@ -16,7 +16,17 @@ export async function POST(request: NextRequest) {
     }
 
     const adminsRef = collection(db, "admins");
-    const q = query(adminsRef, where("account", "==", account.toLowerCase().trim()));
+
+    const input = account.toLowerCase().trim();
+    const isEmail = input.includes("@");
+
+    let q;
+    if (isEmail) {
+      q = query(adminsRef, where("email", "==", input));
+    } else {
+      q = query(adminsRef, where("account", "==", input));
+    }
+
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) {

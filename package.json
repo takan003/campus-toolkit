@@ -4,8 +4,8 @@
   "description": "整合校園資訊、選課、公告、社團等功能的綜合性校園工具平台。",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "node scripts/version.js && next dev",
+    "build": "node scripts/version.js && next build",
     "start": "next start",
     "lint": "next lint"
   },

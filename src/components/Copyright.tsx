@@ -1,12 +1,12 @@
 "use client";
 
+import versionData from "@/version.json";
+
 interface CopyrightProps {
   mode: string;
 }
 
-const version = "1.0.0";
-const verDate = "115.09.16";
-const versionText = `Version ${version} on ${verDate}`;
+const versionText = `Version ${versionData.version} on ${versionData.date.replace(/-/g, ".")}`;
 
 export default function Copyright({ mode }: CopyrightProps) {
   if (mode === "關閉") {
@@ -35,8 +35,8 @@ function CopyrightFull() {
               />
             </td>
             <td style={{ borderBottom: "none" }}>
-              <div>{versionText}</div>
-              <div>Powered by GAS on Google</div>
+      <div>{versionText}</div>
+      <div>Powered by Next.js on Vercel</div>
               <div className="flex items-center justify-center gap-2 my-1 flex-wrap">
                 {/* Donate */}
                 <a
@@ -149,7 +149,7 @@ function CopyrightSimple() {
   return (
     <div className="text-center text-sm py-4">
       <div>Powered By Google</div>
-      <div>數位校園工具箱 v{version}</div>
+      <div>數位校園工具箱 {versionText}</div>
       <div className="flex items-center justify-center gap-2 mt-1">
         <span>Chang, Chia-Cheng 張家誠</span>
         <a

@@ -13,7 +13,6 @@ import {
 const DEFAULT_EMAIL = "takan003@gms.hlgs.hlc.edu.tw";
 const DEFAULT_ACCOUNT = "takan003";
 const DEFAULT_PASSWORD = "111zzzZZZ";
-const DEFAULT_NAME = "張家誠";
 
 async function existsIn(collectionName: string): Promise<boolean> {
   const byAccount = query(collection(db, collectionName), where("account", "==", DEFAULT_ACCOUNT));
@@ -27,13 +26,13 @@ export async function POST() {
     const passwordHash = await hashPassword(DEFAULT_PASSWORD, 12);
     const now = Date.now();
 
-    const base: Omit<BaseUserRecord, never> = {
+    const base: BaseUserRecord = {
       email: DEFAULT_EMAIL,
       account: DEFAULT_ACCOUNT,
       passwordHash,
       twoFactorEnabled: false,
       totpSecret: "",
-      name: DEFAULT_NAME,
+      name: "",
       loginRecords: [],
       lastLoginMethod: "",
       loginCount: 0,
@@ -51,11 +50,12 @@ export async function POST() {
     if (await existsIn(studentCol)) {
       skipped.push("student");
     } else {
-      const student: Omit<StudentRecord, never> = {
+      const student: StudentRecord = {
         ...base,
-        studentId: "",
-        className: "",
-        classNumber: "",
+        name: "張同學",
+        studentId: "910999",
+        className: "101",
+        classNumber: "10101",
       };
       await addDoc(collection(db, studentCol), student);
       created.push("student");
@@ -65,12 +65,13 @@ export async function POST() {
     if (await existsIn(parentCol)) {
       skipped.push("parent");
     } else {
-      const parent: Omit<ParentRecord, never> = {
+      const parent: ParentRecord = {
         ...base,
-        studentName: "",
-        studentId: "",
-        className: "",
-        classNumber: "",
+        name: "張爸爸",
+        studentName: "張同學",
+        studentId: "910999",
+        className: "101",
+        classNumber: "10101",
       };
       await addDoc(collection(db, parentCol), parent);
       created.push("parent");
@@ -80,11 +81,12 @@ export async function POST() {
     if (await existsIn(staffCol)) {
       skipped.push("staff");
     } else {
-      const staff: Omit<StaffRecord, never> = {
+      const staff: StaffRecord = {
         ...base,
-        className: "",
-        title: "",
-        attribute: "",
+        name: "張老師",
+        className: "101",
+        title: "導師",
+        attribute: "教師",
       };
       await addDoc(collection(db, staffCol), staff);
       created.push("staff");

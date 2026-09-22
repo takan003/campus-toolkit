@@ -6,6 +6,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import Copyright from "@/components/Copyright";
+import AdSense from "@/components/AdSense";
 
 interface UserSession {
   uid: string;
@@ -170,6 +171,13 @@ export default function AdminPage() {
           登出
         </button>
       </div>
+
+      {/* 廣告區域 */}
+      {settings.sponsorAdEnabled && (
+        <div className="w-full max-w-2xl">
+          <AdSense />
+        </div>
+      )}
 
       {/* 版權宣告 */}
       <div className="w-full max-w-2xl mt-auto">

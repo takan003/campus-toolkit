@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { verifyPassword } from "@/lib/auth";
+import { createSession } from "@/lib/server-session";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 
 const LOCK_THRESHOLD = 5;
@@ -82,16 +83,17 @@ export async function POST(request: NextRequest) {
       ...(loginRecords ? { loginRecords } : {}),
     });
 
-    return NextResponse.json({
-      success: true,
-      user: {
-        uid: userDoc.id,
-        email: userData.email,
-        account: userData.account,
-        displayName: userData.name || userData.displayName || "",
-        role,
-      },
-    });
+    const user = {
+      uid: userDoc.id,
+      email: userData.email,
+      account: userData.account,
+      displayName: userData.name || userData.displayName || "",
+      role,
+    };
+
+    await createSession(user);
+
+    return NextResponse.json({ success: true, user });
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json({ success: false, message: "系統錯誤，請稍後再試" });

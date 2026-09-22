@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { hashPassword } from "@/lib/auth";
+import { getSession, unauthorized, forbidden } from "@/lib/server-session";
 import {
   ROLE_COLLECTIONS,
   BaseUserRecord,
@@ -105,9 +106,15 @@ export async function seedRoles() {
 }
 
 export async function GET() {
+  const session = await getSession();
+  if (!session) return unauthorized();
+  if (session.role !== "admin") return forbidden();
   return seedRoles();
 }
 
 export async function POST() {
+  const session = await getSession();
+  if (!session) return unauthorized();
+  if (session.role !== "admin") return forbidden();
   return seedRoles();
 }

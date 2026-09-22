@@ -6,7 +6,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import { UserRole, ROLE_COLLECTIONS, ROLE_LABELS, ROLE_SPECIFIC_FIELDS, isUserRole } from "@/types/users";
-import { getSession, clearSession } from "@/lib/session";
+import { getSession, logout } from "@/lib/session";
 import Copyright from "@/components/Copyright";
 
 export default function AccountSecurityPage({ role }: { role: Exclude<UserRole, "admin"> }) {
@@ -108,7 +108,7 @@ export default function AccountSecurityPage({ role }: { role: Exclude<UserRole, 
   }
 
   function handleLogout() {
-    clearSession();
+    void logout();
     router.push("/");
   }
 

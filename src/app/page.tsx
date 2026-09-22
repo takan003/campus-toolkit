@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { doc, getDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { signInWithPopup, signOut } from "firebase/auth";
 import { db, auth, googleProvider } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
-import { UserRole, ROLE_HOME, ROLE_LABELS, ROLE_COLLECTIONS, isUserRole } from "@/types/users";
+import { UserRole, ROLE_HOME, ROLE_LABELS, isUserRole } from "@/types/users";
 import { getSession } from "@/lib/session";
 import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
@@ -109,52 +109,26 @@ export default function Home() {
         return;
       }
 
-      const collectionName = ROLE_COLLECTIONS[role];
-      const q = query(collection(db, collectionName), where("email", "==", email));
-      const snapshot = await getDocs(q);
-
-      if (snapshot.empty) {
-        await signOut(auth);
-        setError(`此 Google 帳號尚未註冊於「${ROLE_LABELS[role]}」身分，請改用帳號密碼登入或聯繫管理員`);
-        setGoogleLoading(false);
-        return;
-      }
-
-      const userDoc = snapshot.docs[0];
-      const userData = userDoc.data();
-
-      if (userData.lockedUntil && Date.now() < userData.lockedUntil) {
-        await signOut(auth);
-        const remainMin = Math.ceil((userData.lockedUntil - Date.now()) / 60000);
-        setError(`帳號已鎖定，請 ${remainMin} 分鐘後再試`);
-        setGoogleLoading(false);
-        return;
-      }
-
-      const now = Date.now();
-      const loginRecords =
-        role === "admin"
-          ? undefined
-          : [...((userData.loginRecords as number[]) || []), now].slice(-50);
-
-      await updateDoc(doc(db, collectionName, userDoc.id), {
-        failedAttempts: 0,
-        lockedUntil: 0,
-        lastLogin: now,
-        lastLoginMethod: "google",
-        loginCount: (userData.loginCount || 0) + 1,
-        ...(loginRecords ? { loginRecords } : {}),
+      const idToken = await result.user.getIdToken();
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken, role }),
       });
+      const data = await res.json();
+
+      if (!data.success) {
+        await signOut(auth);
+        setError(data.message || "Google 登入失敗");
+        setGoogleLoading(false);
+        return;
+      }
 
       sessionStorage.setItem(
         "user_session",
         JSON.stringify({
-          uid: userDoc.id,
-          email: userData.email,
-          account: userData.account,
-          displayName: userData.name || userData.displayName || "",
-          role,
-          loginTime: now,
+          ...data.user,
+          loginTime: Date.now(),
         })
       );
 

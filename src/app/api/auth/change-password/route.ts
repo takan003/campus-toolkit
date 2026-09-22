@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { verifyPassword, hashPassword } from "@/lib/auth";
+import { getSession, unauthorized, forbidden } from "@/lib/server-session";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 
 export async function POST(request: NextRequest) {
@@ -14,6 +15,13 @@ export async function POST(request: NextRequest) {
 
     if (!isUserRole(role)) {
       return NextResponse.json({ success: false, message: "無效的角色" });
+    }
+
+    const session = await getSession();
+    if (!session) return unauthorized();
+    if (session.role !== role) return forbidden("身分不符");
+    if (session.account !== account.toLowerCase().trim() && session.email !== account.toLowerCase().trim()) {
+      return forbidden("僅能變更自身密碼");
     }
 
     if (newPassword.length < 8) {

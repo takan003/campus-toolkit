@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
-import { getSession, clearSession, UserSession } from "@/lib/session";
+import { getSession, logout, UserSession } from "@/lib/session";
 
 interface ModuleCard {
   icon: React.ReactNode;
@@ -86,7 +86,7 @@ export default function AdminPage() {
   }, []);
 
   function handleLogout() {
-    clearSession();
+    void logout();
     router.push("/");
   }
 

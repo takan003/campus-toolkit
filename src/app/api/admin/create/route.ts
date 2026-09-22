@@ -2,16 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { hashPassword } from "@/lib/auth";
+import { getSession, unauthorized, forbidden } from "@/lib/server-session";
 
 export async function POST(request: NextRequest) {
   try {
+    const adminsRef = collection(db, "admins");
+    const existing = await getDocs(adminsRef);
+    const isBootstrap = existing.empty;
+
+    if (!isBootstrap) {
+      const session = await getSession();
+      if (!session) return unauthorized();
+      if (session.role !== "admin") return forbidden();
+    }
+
     const { email, account, password, displayName, costFactor } = await request.json();
 
     if (!email || !account || !password) {
       return NextResponse.json({ success: false, message: "請填寫完整資訊" });
     }
-
-    const adminsRef = collection(db, "admins");
 
     const emailCheck = query(adminsRef, where("email", "==", email.toLowerCase().trim()));
     const emailSnapshot = await getDocs(emailCheck);

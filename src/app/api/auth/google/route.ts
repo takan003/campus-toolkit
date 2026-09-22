@@ -1,0 +1,91 @@
+import { NextRequest, NextResponse } from "next/server";
+import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { createSession } from "@/lib/server-session";
+import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
+
+export async function POST(request: NextRequest) {
+  try {
+    const { idToken, role } = await request.json();
+
+    if (!idToken || !isUserRole(role)) {
+      return NextResponse.json({ success: false, message: "參數錯誤" }, { status: 400 });
+    }
+
+    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json({ success: false, message: "系統錯誤" }, { status: 500 });
+    }
+
+    const verifyRes = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdToken?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken, returnSecureToken: false }),
+      }
+    );
+
+    if (!verifyRes.ok) {
+      return NextResponse.json({ success: false, message: "Google 驗證失敗" }, { status: 401 });
+    }
+
+    const verified = (await verifyRes.json()) as { email?: string };
+    const email = verified.email?.toLowerCase().trim();
+    if (!email) {
+      return NextResponse.json({ success: false, message: "無法取得 Google 帳號資訊" }, { status: 401 });
+    }
+
+    const collectionName = ROLE_COLLECTIONS[role];
+    const q = query(collection(db, collectionName), where("email", "==", email));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      return NextResponse.json({
+        success: false,
+        message: `此 Google 帳號尚未註冊於所選身分`,
+      });
+    }
+
+    const userDoc = snapshot.docs[0];
+    const userData = userDoc.data();
+
+    if (userData.lockedUntil && Date.now() < userData.lockedUntil) {
+      const remainMin = Math.ceil((userData.lockedUntil - Date.now()) / 60000);
+      return NextResponse.json({
+        success: false,
+        message: `帳號已鎖定，請 ${remainMin} 分鐘後再試`,
+      });
+    }
+
+    const now = Date.now();
+    const loginRecords =
+      role === "admin"
+        ? undefined
+        : [...((userData.loginRecords as number[]) || []), now].slice(-50);
+
+    await updateDoc(doc(db, collectionName, userDoc.id), {
+      failedAttempts: 0,
+      lockedUntil: 0,
+      lastLogin: now,
+      lastLoginMethod: "google",
+      loginCount: (userData.loginCount || 0) + 1,
+      ...(loginRecords ? { loginRecords } : {}),
+    });
+
+    const user = {
+      uid: userDoc.id,
+      email: userData.email,
+      account: userData.account,
+      displayName: userData.name || userData.displayName || "",
+      role,
+    };
+
+    await createSession(user);
+
+    return NextResponse.json({ success: true, user });
+  } catch (error) {
+    console.error("Google session error:", error);
+    return NextResponse.json({ success: false, message: "系統錯誤，請稍後再試" }, { status: 500 });
+  }
+}

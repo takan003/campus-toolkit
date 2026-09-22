@@ -26,6 +26,15 @@ export function clearSession() {
   sessionStorage.removeItem("user_session");
 }
 
+export async function logout(): Promise<void> {
+  clearSession();
+  try {
+    await fetch("/api/auth/logout", { method: "POST" });
+  } catch {
+    // cookie 可能已過期，忽略網路錯誤
+  }
+}
+
 export function getHomePath(role: UserRole): string {
   return ROLE_HOME[role];
 }

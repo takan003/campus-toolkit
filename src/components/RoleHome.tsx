@@ -6,7 +6,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import { UserRole, ROLE_HOME, ROLE_LABELS } from "@/types/users";
-import { getSession, clearSession } from "@/lib/session";
+import { getSession, logout } from "@/lib/session";
 import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
 
@@ -49,7 +49,7 @@ export default function RoleHome({ role }: { role: Exclude<UserRole, "admin"> })
   }, []);
 
   function handleLogout() {
-    clearSession();
+    void logout();
     router.push("/");
   }
 

@@ -2,9 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { hashPassword } from "@/lib/auth";
+import { getSession, unauthorized, forbidden } from "@/lib/server-session";
+
+async function requireAdmin() {
+  const session = await getSession();
+  if (!session) return unauthorized();
+  if (session.role !== "admin") return forbidden();
+  return null;
+}
 
 export async function GET() {
   try {
+    const denied = await requireAdmin();
+    if (denied) return denied;
+
     const adminsRef = collection(db, "admins");
     const snapshot = await getDocs(adminsRef);
 
@@ -31,6 +42,9 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
+    const denied = await requireAdmin();
+    if (denied) return denied;
+
     const { uid, email, account, displayName, password, costFactor } = await request.json();
 
     if (!uid) {
@@ -60,6 +74,9 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const denied = await requireAdmin();
+    if (denied) return denied;
+
     const { uid } = await request.json();
 
     if (!uid) {

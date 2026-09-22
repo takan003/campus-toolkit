@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
+import { logout } from "@/lib/session";
 import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
 import HelpTooltip from "@/components/HelpTooltip";
@@ -224,7 +225,7 @@ export default function SettingsPage() {
   }
 
   function handleLogout() {
-    sessionStorage.removeItem("user_session");
+    void logout();
     router.push("/");
   }
 

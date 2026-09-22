@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { defaultSettings } from "@/types/settings";
-import { getSession, clearSession } from "@/lib/session";
+import { getSession, logout as clearSession } from "@/lib/session";
 
 const WARNING_SECONDS = 30;
 const TICK_MS = 1000;
@@ -58,7 +58,7 @@ export default function IdleTimeout() {
   }, []);
 
   const logout = useCallback(() => {
-    clearSession();
+    void clearSession();
     warnedRef.current = false;
     hadSessionRef.current = false;
     setShowWarning(false);
@@ -100,7 +100,7 @@ export default function IdleTimeout() {
       const remainMs = timeoutMs - (Date.now() - lastActivityRef.current);
 
       if (remainMs <= 0) {
-        clearSession();
+        void clearSession();
         hadSessionRef.current = false;
         warnedRef.current = false;
         setShowWarning(false);

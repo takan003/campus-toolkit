@@ -3,12 +3,15 @@ import { collection, query, where, getDocs, updateDoc, doc } from "firebase/fire
 import { db } from "@/lib/firebase";
 import { verifyPassword, hashPassword } from "@/lib/auth";
 import { verifySession } from "@/lib/dal";
-import { createSession, unauthorized, forbidden } from "@/lib/server-session";
+import { createSession, getSession, unauthorized, forbidden } from "@/lib/server-session";
+import { revokeJti } from "@/lib/revocation";
+import { logActivity, getClientIp } from "@/lib/audit";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 
 export async function POST(request: NextRequest) {
   try {
     const { account, oldPassword, newPassword, role } = await request.json();
+    const ip = getClientIp(request);
 
     if (!account || !oldPassword || !newPassword) {
       return NextResponse.json({ success: false, message: "請填寫完整資訊" });
@@ -48,6 +51,13 @@ export async function POST(request: NextRequest) {
 
     const isValid = await verifyPassword(oldPassword, userData.passwordHash);
     if (!isValid) {
+      await logActivity({
+        userId: session.uid,
+        role,
+        action: "login_failed",
+        ip,
+        details: "變更密碼時舊密碼錯誤",
+      });
       return NextResponse.json({ success: false, message: "目前密碼錯誤" });
     }
 
@@ -58,6 +68,11 @@ export async function POST(request: NextRequest) {
       tokenVersion: newTokenVersion,
     });
 
+    const priorSession = await getSession();
+    if (priorSession?.jti) {
+      await revokeJti(priorSession.jti);
+    }
+
     await createSession({
       uid: session.uid,
       email: session.email,
@@ -65,6 +80,14 @@ export async function POST(request: NextRequest) {
       displayName: session.displayName,
       role: session.role,
       tokenVersion: newTokenVersion,
+    });
+
+    await logActivity({
+      userId: session.uid,
+      role,
+      action: "password_changed",
+      ip,
+      details: "密碼已更新，舊 token 已撤銷",
     });
 
     return NextResponse.json({ success: true, message: "密碼已更新" });

@@ -199,6 +199,12 @@ export default function SettingsPage() {
       delete payload.workspaceLoginEnabled;
       await setDoc(docRef, payload);
 
+      fetch("/api/activity", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ details: "系統設定已儲存" }),
+      }).catch(() => {});
+
       // 同步強制主題到 localStorage
       if (settings.cssThemeId) {
         localStorage.setItem("campusToolkitForcedTheme", settings.cssThemeId);

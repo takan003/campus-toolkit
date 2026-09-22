@@ -3,16 +3,20 @@ import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { hashPassword } from "@/lib/auth";
 import { requireRole, toAuthResponse } from "@/lib/dal";
+import { logActivity, getClientIp } from "@/lib/audit";
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = getClientIp(request);
     const adminsRef = collection(db, "admins");
     const existing = await getDocs(adminsRef);
     const isBootstrap = existing.empty;
 
+    let session = null;
     if (!isBootstrap) {
-      const { denial } = await requireRole("admin");
+      const { session: s, denial } = await requireRole("admin");
       if (denial) return toAuthResponse(denial);
+      session = s;
     }
 
     const { email, account, password, displayName, costFactor } = await request.json();
@@ -52,6 +56,16 @@ export async function POST(request: NextRequest) {
     };
 
     const docRef = await addDoc(adminsRef, newAdmin);
+
+    await logActivity({
+      userId: session?.uid,
+      role: "admin",
+      action: "admin_created",
+      ip,
+      details: isBootstrap
+        ? `建立初始管理員 ${newAdmin.account}`
+        : `由 ${session?.account || "管理員"} 建立 ${newAdmin.account}`,
+    });
 
     return NextResponse.json({
       success: true,

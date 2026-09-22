@@ -3,11 +3,14 @@ import { doc, getDoc } from "firebase/firestore";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { getSession, SessionPayload } from "@/lib/server-session";
+import { isJtiRevoked } from "@/lib/revocation";
 import { ROLE_COLLECTIONS, UserRole } from "@/types/users";
 
 export async function verifySession(): Promise<SessionPayload | null> {
   const session = await getSession();
   if (!session) return null;
+
+  if (session.jti && (await isJtiRevoked(session.jti))) return null;
 
   try {
     const snap = await getDoc(doc(db, ROLE_COLLECTIONS[session.role], session.uid));

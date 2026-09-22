@@ -12,6 +12,7 @@ export interface SessionPayload {
   displayName: string;
   role: UserRole;
   tokenVersion: number;
+  jti: string;
 }
 
 function getSecretKey(): Uint8Array {
@@ -34,7 +35,7 @@ export async function signSessionToken(payload: SessionPayload): Promise<string>
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_MAX_AGE_SECONDS}s`)
-    .setJti(crypto.randomUUID())
+    .setJti(payload.jti || crypto.randomUUID())
     .sign(getSecretKey());
 }
 
@@ -48,6 +49,13 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
       return null;
     }
 
+    if (
+      typeof payload.iat === "number" &&
+      Date.now() / 1000 - payload.iat > SESSION_MAX_AGE_SECONDS
+    ) {
+      return null;
+    }
+
     return {
       uid: payload.uid,
       email: typeof payload.email === "string" ? payload.email : "",
@@ -55,6 +63,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
       displayName: typeof payload.displayName === "string" ? payload.displayName : "",
       role: payload.role,
       tokenVersion: typeof payload.tokenVersion === "number" ? payload.tokenVersion : 1,
+      jti: typeof payload.jti === "string" ? payload.jti : "",
     };
   } catch {
     return null;

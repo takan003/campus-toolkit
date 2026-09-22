@@ -3,6 +3,7 @@ import { collection, query, where, getDocs, updateDoc, doc } from "firebase/fire
 import { db } from "@/lib/firebase";
 import { verifyPassword } from "@/lib/auth";
 import { createSession } from "@/lib/server-session";
+import { logActivity, getClientIp } from "@/lib/audit";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 
 const LOCK_THRESHOLD = 5;
@@ -11,6 +12,7 @@ const LOCK_DURATION_MS = 15 * 60 * 1000;
 export async function POST(request: NextRequest) {
   try {
     const { account, password, role } = await request.json();
+    const ip = getClientIp(request);
 
     if (!account || !password) {
       return NextResponse.json({ success: false, message: "請輸入帳號與密碼" });
@@ -33,6 +35,12 @@ export async function POST(request: NextRequest) {
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) {
+      await logActivity({
+        action: "login_failed",
+        role,
+        ip,
+        details: `帳號不存在或錯誤：${input}`,
+      });
       return NextResponse.json({ success: false, message: "帳號或密碼錯誤" });
     }
 
@@ -41,6 +49,13 @@ export async function POST(request: NextRequest) {
 
     if (userData.lockedUntil && Date.now() < userData.lockedUntil) {
       const remainMin = Math.ceil((userData.lockedUntil - Date.now()) / 60000);
+      await logActivity({
+        userId: userDoc.id,
+        role,
+        action: "login_failed",
+        ip,
+        details: "帳號已鎖定期間嘗試登入",
+      });
       return NextResponse.json({
         success: false,
         message: `帳號已鎖定，請 ${remainMin} 分鐘後再試`,
@@ -58,7 +73,22 @@ export async function POST(request: NextRequest) {
         lockedUntil: lockUntil,
       });
 
+      await logActivity({
+        userId: userDoc.id,
+        role,
+        action: "login_failed",
+        ip,
+        details: `密碼錯誤，失敗次數 ${newFailCount}`,
+      });
+
       if (newFailCount >= LOCK_THRESHOLD) {
+        await logActivity({
+          userId: userDoc.id,
+          role,
+          action: "account_locked",
+          ip,
+          details: "連續失敗 5 次，鎖定 15 分鐘",
+        });
         return NextResponse.json({
           success: false,
           message: "帳號已鎖定，請 15 分鐘後再試",
@@ -93,6 +123,14 @@ export async function POST(request: NextRequest) {
     };
 
     await createSession(user);
+
+    await logActivity({
+      userId: userDoc.id,
+      role,
+      action: "login",
+      ip,
+      details: "帳密登入成功",
+    });
 
     return NextResponse.json({ success: true, user });
   } catch (error) {

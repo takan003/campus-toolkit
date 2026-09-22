@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { createSession } from "@/lib/server-session";
+import { logActivity, getClientIp } from "@/lib/audit";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 
 export async function POST(request: NextRequest) {
   try {
     const { idToken, role } = await request.json();
+    const ip = getClientIp(request);
 
     if (!idToken || !isUserRole(role)) {
       return NextResponse.json({ success: false, message: "參數錯誤" }, { status: 400 });
@@ -41,6 +43,12 @@ export async function POST(request: NextRequest) {
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) {
+      await logActivity({
+        action: "login_failed",
+        role,
+        ip,
+        details: `Google 帳號未註冊於所選身分：${email}`,
+      });
       return NextResponse.json({
         success: false,
         message: `此 Google 帳號尚未註冊於所選身分`,
@@ -83,6 +91,14 @@ export async function POST(request: NextRequest) {
     };
 
     await createSession(user);
+
+    await logActivity({
+      userId: userDoc.id,
+      role,
+      action: "login",
+      ip,
+      details: "Google 登入成功",
+    });
 
     return NextResponse.json({ success: true, user });
   } catch (error) {

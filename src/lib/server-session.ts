@@ -9,12 +9,19 @@ import {
   signSessionToken,
   verifySessionToken,
 } from "@/lib/session-token";
+import { revokeJti } from "@/lib/revocation";
 
 export { SESSION_COOKIE };
 export type { SessionPayload };
 
-export async function createSession(payload: SessionPayload): Promise<void> {
-  const token = await signSessionToken(payload);
+export async function createSession(
+  payload: Omit<SessionPayload, "jti"> & { jti?: string }
+): Promise<SessionPayload> {
+  const session: SessionPayload = {
+    ...payload,
+    jti: payload.jti || crypto.randomUUID(),
+  };
+  const token = await signSessionToken(session);
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
@@ -24,6 +31,8 @@ export async function createSession(payload: SessionPayload): Promise<void> {
     path: "/",
     maxAge: SESSION_MAX_AGE_SECONDS,
   });
+
+  return session;
 }
 
 export async function getSession(): Promise<SessionPayload | null> {
@@ -35,6 +44,17 @@ export async function getSession(): Promise<SessionPayload | null> {
 
 export async function deleteSession(): Promise<void> {
   const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  if (token) {
+    const session = await verifySessionToken(token);
+    if (session?.jti) {
+      try {
+        await revokeJti(session.jti);
+      } catch (error) {
+        console.error("Revoke jti error:", error);
+      }
+    }
+  }
   cookieStore.delete(SESSION_COOKIE);
 }
 

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
+import Copyright from "@/components/Copyright";
+import AdSense from "@/components/AdSense";
 
 interface FormField {
   id: keyof Settings;
@@ -228,77 +230,129 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto p-4 pt-6">
-        <h1 className="text-2xl font-bold text-center mb-6">系統設定</h1>
+    <div className="min-h-screen flex flex-col items-center bg-white px-4 pt-[20px]">
+      {/* 標題區域 */}
+      <div className="text-center mb-2">
+        <h1 className="text-4xl font-bold mb-2">{settings.systemName || "數位校園工具箱"}</h1>
+        <p className="text-xl text-gray-700">{settings.schoolFullName || "學校名稱"}</p>
+        <p className="text-lg text-gray-500">{settings.academicYear} 學年度</p>
+      </div>
 
-        <div className="flex justify-center gap-3 mb-6">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
-          >
-            {saving ? "儲存中..." : "儲存設定"}
-          </button>
-          <button
-            onClick={handleBack}
-            className="border border-gray-300 bg-white px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            返回功能首頁
-          </button>
-          <button
-            onClick={handleLogout}
-            className="border border-gray-300 bg-white px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            登出
-          </button>
+      {/* 功能標題 */}
+      <div className="w-full max-w-2xl mt-4 mb-2 text-center">
+        <h2 className="text-2xl font-bold text-gray-800">系統設定</h2>
+      </div>
+
+      {/* 操作按鈕 */}
+      <div className="w-full max-w-2xl flex justify-end gap-3 mb-4">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+        >
+          {saving ? "儲存中..." : "儲存設定"}
+        </button>
+        <button
+          onClick={handleBack}
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          返回功能首頁
+        </button>
+        <button
+          onClick={handleLogout}
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          登出
+        </button>
+      </div>
+
+      <hr className="w-full max-w-2xl border-gray-300 mb-4" />
+
+      {/* 訊息 */}
+      {message && (
+        <div className={`w-full max-w-2xl text-center mb-4 ${message.includes("失敗") ? "text-red-500" : "text-green-600"}`}>
+          {message}
         </div>
+      )}
 
-        {message && (
-          <div className={`text-center mb-4 ${message.includes("失敗") ? "text-red-500" : "text-green-600"}`}>
-            {message}
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {settingGroups.map((group) => (
-            <div key={group.title} className="bg-white border border-gray-200 rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-gray-600">{group.icon}</span>
-                <h2 className="text-lg font-bold">{group.title}</h2>
-              </div>
-
-              <div className="space-y-4">
-                {group.fields.map((field) => (
-                  <div key={field.id} className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <label className="text-gray-600 sm:w-48 shrink-0">{field.label}</label>
-                    {field.type === "select" ? (
-                      <select
-                        value={getFieldValue(field.id)}
-                        onChange={(e) => handleChange(field.id, e.target.value)}
-                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 bg-white"
-                      >
-                        {field.options?.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type={field.type}
-                        value={String(settings[field.id])}
-                        onChange={(e) => handleChange(field.id, e.target.value)}
-                        placeholder={field.placeholder}
-                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2"
-                      />
-                    )}
-                  </div>
-                ))}
-              </div>
+      {/* 設定分組卡片 */}
+      <div className="w-full max-w-2xl space-y-4 mb-8">
+        {settingGroups.map((group) => (
+          <div key={group.title} className="border border-gray-200 rounded-lg p-5">
+            {/* 分組標題 */}
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-gray-500">{group.icon}</span>
+              <h3 className="text-lg font-bold text-gray-800">{group.title}</h3>
             </div>
-          ))}
+
+            {/* 欄位列表 */}
+            <div className="space-y-4">
+              {group.fields.map((field) => (
+                <div key={field.id} className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <label className="text-gray-600 sm:w-48 shrink-0">{field.label}</label>
+                  {field.type === "select" ? (
+                    <select
+                      value={getFieldValue(field.id)}
+                      onChange={(e) => handleChange(field.id, e.target.value)}
+                      className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white"
+                    >
+                      {field.options?.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={field.type}
+                      value={String(settings[field.id])}
+                      onChange={(e) => handleChange(field.id, e.target.value)}
+                      placeholder={field.placeholder}
+                      className="flex-1 border border-gray-300 rounded px-3 py-2"
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <hr className="w-full max-w-2xl border-gray-300 mb-4" />
+
+      {/* 底部操作按鈕 */}
+      <div className="w-full max-w-2xl flex justify-end gap-3 mb-8">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+        >
+          {saving ? "儲存中..." : "儲存設定"}
+        </button>
+        <button
+          onClick={handleBack}
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          返回功能首頁
+        </button>
+        <button
+          onClick={handleLogout}
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          登出
+        </button>
+      </div>
+
+      {/* 廣告區域 */}
+      {settings.sponsorAdEnabled && (
+        <div className="w-full max-w-2xl">
+          <AdSense />
         </div>
+      )}
+
+      {/* 版權宣告 */}
+      <div className="w-full max-w-2xl mt-auto">
+        <Copyright mode={settings.copyrightNotice ? "啟用" : "關閉"} />
       </div>
     </div>
   );

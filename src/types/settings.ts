@@ -15,6 +15,7 @@ export interface Settings {
   twoFactorEnabled: boolean;
   passwordCostFactor: number;
   sessionTimeout: number;
+  cssThemeId: string; // Admin 強制主題
   copyrightNotice: boolean;
   sponsorAdEnabled: boolean;
 }
@@ -36,6 +37,7 @@ export const defaultSettings: Settings = {
   twoFactorEnabled: true,
   passwordCostFactor: 5,
   sessionTimeout: 10,
+  cssThemeId: "",
   copyrightNotice: true,
   sponsorAdEnabled: false,
 };

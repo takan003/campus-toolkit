@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
+import { builtinThemes } from "@/lib/themes";
 
 interface FormField {
   id: keyof Settings;
@@ -21,6 +22,11 @@ interface SettingGroup {
   icon: React.ReactNode;
   fields: FormField[];
 }
+
+const themeOptions = [
+  { value: "", label: "不強制（用戶可自行選擇）" },
+  ...builtinThemes.map((t) => ({ value: t.id, label: t.name })),
+];
 
 const settingGroups: SettingGroup[] = [
   {
@@ -119,6 +125,12 @@ const settingGroups: SettingGroup[] = [
     ),
     fields: [
       {
+        id: "cssThemeId",
+        label: "強制主題",
+        type: "select",
+        options: themeOptions,
+      },
+      {
         id: "copyrightNotice",
         label: "原創版權宣告",
         type: "select",
@@ -158,7 +170,15 @@ export default function SettingsPage() {
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data() as Settings;
-        setSettings({ ...defaultSettings, ...data });
+        const mergedSettings = { ...defaultSettings, ...data };
+        setSettings(mergedSettings);
+
+        // 同步強制主題到 localStorage
+        if (mergedSettings.cssThemeId) {
+          localStorage.setItem("campusToolkitForcedTheme", mergedSettings.cssThemeId);
+        } else {
+          localStorage.removeItem("campusToolkitForcedTheme");
+        }
       }
     } catch (error: unknown) {
       console.error("載入設定失敗:", error);
@@ -176,6 +196,14 @@ export default function SettingsPage() {
     try {
       const docRef = doc(db, "settings", "system");
       await setDoc(docRef, settings);
+
+      // 同步強制主題到 localStorage
+      if (settings.cssThemeId) {
+        localStorage.setItem("campusToolkitForcedTheme", settings.cssThemeId);
+      } else {
+        localStorage.removeItem("campusToolkitForcedTheme");
+      }
+
       setModalMessage("設定已儲存！");
       setShowModal(true);
       setTimeout(() => setShowModal(false), 3000);

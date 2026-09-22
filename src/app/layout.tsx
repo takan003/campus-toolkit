@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "@/styles/globals.css";
+import ClientLayout from "@/components/ClientLayout";
 
 export const metadata: Metadata = {
   title: "數位校園工具箱",
@@ -20,7 +21,9 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <ClientLayout>{children}</ClientLayout>
+      </body>
     </html>
   );
 }

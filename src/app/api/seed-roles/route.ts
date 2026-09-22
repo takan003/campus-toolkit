@@ -21,7 +21,7 @@ async function existsIn(collectionName: string): Promise<boolean> {
   return !a.empty || !e.empty;
 }
 
-export async function POST() {
+export async function seedRoles() {
   try {
     const passwordHash = await hashPassword(DEFAULT_PASSWORD, 12);
     const now = Date.now();
@@ -102,4 +102,12 @@ export async function POST() {
     console.error("Seed roles error:", error);
     return NextResponse.json({ success: false, message: "系統錯誤，請稍後再試" });
   }
+}
+
+export async function GET() {
+  return seedRoles();
+}
+
+export async function POST() {
+  return seedRoles();
 }

@@ -11,7 +11,6 @@ export interface Settings {
   oauthEnabled: boolean;
   oauthClientId: string;
   totpEnabled: boolean;
-  workspaceLoginEnabled: boolean;
   twoFactorEnabled: boolean;
   passwordCostFactor: number;
   sessionTimeout: number;
@@ -33,7 +32,6 @@ export const defaultSettings: Settings = {
   oauthEnabled: false,
   oauthClientId: "",
   totpEnabled: false,
-  workspaceLoginEnabled: true,
   twoFactorEnabled: true,
   passwordCostFactor: 5,
   sessionTimeout: 10,

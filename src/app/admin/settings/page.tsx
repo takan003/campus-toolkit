@@ -95,15 +95,6 @@ const settingGroups: SettingGroup[] = [
         ],
       },
       {
-        id: "workspaceLoginEnabled",
-        label: "啟用Workspace同機構帳號登入",
-        type: "select",
-        options: [
-          { value: "true", label: "啟用" },
-          { value: "false", label: "停用" },
-        ],
-      },
-      {
         id: "twoFactorEnabled",
         label: "兩階段驗證",
         type: "select",
@@ -169,7 +160,8 @@ export default function SettingsPage() {
       const docRef = doc(db, "settings", "system");
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        const data = docSnap.data() as Settings;
+        const data = docSnap.data() as Partial<Settings> & { workspaceLoginEnabled?: unknown };
+        delete data.workspaceLoginEnabled;
         const mergedSettings = { ...defaultSettings, ...data };
         setSettings(mergedSettings);
 
@@ -195,7 +187,9 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       const docRef = doc(db, "settings", "system");
-      await setDoc(docRef, settings);
+      const payload: Record<string, unknown> = { ...settings };
+      delete payload.workspaceLoginEnabled;
+      await setDoc(docRef, payload);
 
       // 同步強制主題到 localStorage
       if (settings.cssThemeId) {
@@ -236,7 +230,7 @@ export default function SettingsPage() {
   function handleChange(id: keyof Settings, value: string) {
     const booleanFields: (keyof Settings)[] = [
       "systemEnabled", "oauthEnabled", "totpEnabled",
-      "workspaceLoginEnabled", "twoFactorEnabled",
+      "twoFactorEnabled",
       "copyrightNotice", "sponsorAdEnabled",
     ];
     const numberFields: (keyof Settings)[] = [
@@ -348,7 +342,7 @@ export default function SettingsPage() {
       <hr className="w-full max-w-2xl border-themed mb-4" />
 
       {/* 底部操作按鈕 */}
-      <div className="w-full max-w-2xl flex justify-end gap-3 mb-8">
+      <div className="w-full max-w-2xl flex justify-start gap-3 mb-8">
         <button
           onClick={handleSave}
           disabled={saving}

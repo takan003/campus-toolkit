@@ -250,22 +250,6 @@ export default function Home() {
           </svg>
           以 Google 帳號登入
         </button>
-
-        {/* 分隔線 */}
-        <div className="flex items-center gap-3 my-6">
-          <hr className="flex-1 border-themed" />
-          <span className="text-t3 text-sm">或</span>
-          <hr className="flex-1 border-themed" />
-        </div>
-
-        {/* Workspace 登入 */}
-        <p className="text-center text-sm text-t3 mb-2">以Workspace帳號登入</p>
-        <button className="w-full btn-theme rounded py-3 flex items-center justify-center gap-2 cursor-pointer">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-          </svg>
-          登入
-        </button>
       </div>
 
       {/* 廣告區域 */}

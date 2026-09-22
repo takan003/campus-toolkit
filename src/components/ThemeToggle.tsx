@@ -12,7 +12,7 @@ export default function ThemeToggle() {
       {/* 觸發按鈕 */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 z-40 w-12 h-12 rounded-full border shadow-lg flex items-center justify-center cursor-pointer transition-transform hover:scale-110"
+        className="fixed top-4 right-4 z-40 w-12 h-12 rounded-full border shadow-lg flex items-center justify-center cursor-pointer transition-transform hover:scale-110"
         style={{
           backgroundColor: "var(--card)",
           borderColor: "var(--bd)",

@@ -110,40 +110,40 @@ export default function AdminPage() {
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">載入中...</p>
+        <p className="text-t3">載入中...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-white px-4 pt-[20px]">
+    <div className="min-h-screen flex flex-col items-center bg-page px-4 pt-[20px]">
       {/* 標題區域 */}
       <div className="text-center mb-2">
         <h1 className="text-4xl font-bold mb-2">{settings.systemName || "數位校園工具箱"}</h1>
-        <p className="text-xl text-gray-700">{settings.schoolFullName || "學校名稱"}</p>
-        <p className="text-lg text-gray-500">{settings.academicYear} 學年度</p>
+        <p className="text-xl text-t2">{settings.schoolFullName || "學校名稱"}</p>
+        <p className="text-lg text-t3">{settings.academicYear} 學年度</p>
       </div>
 
       {/* 功能標題 */}
       <div className="w-full max-w-2xl mt-4 mb-2 text-center">
-        <h2 className="text-2xl font-bold text-gray-800">管理員功能首頁</h2>
+        <h2 className="text-2xl font-bold text-t1">管理員功能首頁</h2>
       </div>
 
       {/* 登出按鈕 */}
       <div className="w-full max-w-2xl flex justify-end mb-4">
         <button
           onClick={handleLogout}
-          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+          className="btn-theme rounded-lg px-4 py-2 text-sm cursor-pointer"
         >
           登出
         </button>
       </div>
 
-      <hr className="w-full max-w-2xl border-gray-300 mb-4" />
+      <hr className="w-full max-w-2xl border-themed mb-4" />
 
       {/* 提示文字 */}
       <div className="w-full max-w-2xl mb-4">
-        <p className="text-sm text-gray-500">拖曳卡片可調整顯示順序，此瀏覽器會自動記住</p>
+        <p className="text-sm text-t3">拖曳卡片可調整顯示順序，此瀏覽器會自動記住</p>
       </div>
 
       {/* 功能卡片 */}
@@ -152,21 +152,21 @@ export default function AdminPage() {
           <button
             key={mod.label}
             onClick={() => router.push(mod.href)}
-            className="flex items-center gap-3 border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer text-left"
+            className="flex items-center gap-3 border border-themed rounded-lg p-4 bg-hover transition-colors cursor-pointer text-left"
           >
-            <span className="text-gray-500">{mod.icon}</span>
-            <span className="font-medium text-gray-700">{mod.label}</span>
+            <span className="text-t3">{mod.icon}</span>
+            <span className="font-medium text-t2">{mod.label}</span>
           </button>
         ))}
       </div>
 
-      <hr className="w-full max-w-2xl border-gray-300 mb-4" />
+      <hr className="w-full max-w-2xl border-themed mb-4" />
 
       {/* 底部登出 */}
       <div className="w-full max-w-2xl mb-8">
         <button
           onClick={handleLogout}
-          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+          className="btn-theme rounded-lg px-4 py-2 text-sm cursor-pointer"
         >
           登出
         </button>

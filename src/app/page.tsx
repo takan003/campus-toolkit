@@ -97,7 +97,7 @@ export default function Home() {
   if (checkingSession) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">載入中...</p>
+        <p className="text-t3">載入中...</p>
       </div>
     );
   }
@@ -107,26 +107,26 @@ export default function Home() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-2">系統目前暫停服務</h1>
-          <p className="text-gray-500">請稍後再試</p>
+          <p className="text-t3">請稍後再試</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white px-4 pt-[20px]">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-page px-4 pt-[20px]">
       {/* 標題區域 */}
       <div className="text-center mb-6">
         <h1 className="text-4xl font-bold mb-2">數位校園工具箱</h1>
-        <p className="text-xl text-gray-700">{settings.schoolFullName || "學校名稱"}</p>
-        <p className="text-lg text-gray-500">{settings.academicYear} 學年度</p>
+        <p className="text-xl text-t2">{settings.schoolFullName || "學校名稱"}</p>
+        <p className="text-lg text-t3">{settings.academicYear} 學年度</p>
       </div>
 
-      <hr className="w-full max-w-md border-gray-300 mb-6" />
+      <hr className="w-full max-w-md border-themed mb-6" />
 
       {/* 登入表單 */}
-      <div className="w-full max-w-md border border-gray-200 rounded-lg p-8">
-        <p className="text-center text-gray-700 mb-4">
+      <div className="w-full max-w-md border border-themed rounded-lg p-8">
+        <p className="text-center text-t2 mb-4">
           歡迎使用，請先選擇身分後登入
         </p>
 
@@ -167,7 +167,7 @@ export default function Home() {
           </label>
         </div>
 
-        <hr className="border-gray-200 mb-6" />
+        <hr className="border-themed mb-6" />
 
         {/* 帳號密碼 */}
         <input
@@ -176,7 +176,7 @@ export default function Home() {
           value={account}
           onChange={(e) => setAccount(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="w-full border border-gray-300 rounded px-4 py-3 mb-4 text-gray-700 placeholder-gray-400"
+          className="w-full input-theme rounded px-4 py-3 mb-4"
         />
         <div className="relative mb-4">
           <input
@@ -185,12 +185,12 @@ export default function Home() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full border border-gray-300 rounded px-4 py-3 pr-12 text-gray-700 placeholder-gray-400"
+            className="w-full input-theme rounded px-4 py-3 pr-12"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-t3 hover:text-t1"
           >
             {showPassword ? (
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -212,24 +212,24 @@ export default function Home() {
         <button
           onClick={handleLogin}
           disabled={loading}
-          className="w-full bg-black text-white rounded py-3 font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 cursor-pointer"
+          className="w-full btn-primary rounded py-3 font-medium transition-colors disabled:opacity-50 cursor-pointer"
         >
           {loading ? "登入中..." : "登入"}
         </button>
 
-        <p className="text-center text-sm text-gray-500 mt-3 cursor-pointer hover:underline">
+        <p className="text-center text-sm text-t3 mt-3 cursor-pointer hover:underline">
           忘記密碼（同時重設驗證碼）
         </p>
 
         {/* 分隔線 */}
         <div className="flex items-center gap-3 my-6">
-          <hr className="flex-1 border-gray-300" />
-          <span className="text-gray-400 text-sm">或</span>
-          <hr className="flex-1 border-gray-300" />
+          <hr className="flex-1 border-themed" />
+          <span className="text-t3 text-sm">或</span>
+          <hr className="flex-1 border-themed" />
         </div>
 
         {/* Google 登入 */}
-        <button className="w-full border border-gray-300 rounded py-3 flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors cursor-pointer">
+        <button className="w-full btn-theme rounded py-3 flex items-center justify-center gap-2 cursor-pointer">
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
@@ -253,14 +253,14 @@ export default function Home() {
 
         {/* 分隔線 */}
         <div className="flex items-center gap-3 my-6">
-          <hr className="flex-1 border-gray-300" />
-          <span className="text-gray-400 text-sm">或</span>
-          <hr className="flex-1 border-gray-300" />
+          <hr className="flex-1 border-themed" />
+          <span className="text-t3 text-sm">或</span>
+          <hr className="flex-1 border-themed" />
         </div>
 
         {/* Workspace 登入 */}
-        <p className="text-center text-sm text-gray-500 mb-2">以Workspace帳號登入</p>
-        <button className="w-full border border-gray-300 rounded py-3 flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors cursor-pointer">
+        <p className="text-center text-sm text-t3 mb-2">以Workspace帳號登入</p>
+        <button className="w-full btn-theme rounded py-3 flex items-center justify-center gap-2 cursor-pointer">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
           </svg>
@@ -283,15 +283,15 @@ export default function Home() {
       {/* 登入Loading遮罩 */}
       {loading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(3px)" }}>
-          <div className="bg-white rounded-2xl p-8 text-center space-y-4 shadow-lg">
+          <div className="bg-card rounded-2xl p-8 text-center space-y-4 shadow-lg">
             <div className="flex justify-center">
-              <svg className="animate-spin" viewBox="0 0 24 24" width={40} height={40} fill="none" stroke="#333" strokeWidth={2} strokeLinecap="round">
-                <circle cx={12} cy={12} r={10} stroke="#e5e7eb" strokeWidth={2} fill="none" />
+              <svg className="animate-spin" viewBox="0 0 24 24" width={40} height={40} fill="none" stroke="var(--t1)" strokeWidth={2} strokeLinecap="round">
+                <circle cx={12} cy={12} r={10} stroke="var(--bd)" strokeWidth={2} fill="none" />
                 <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth={2} />
               </svg>
             </div>
-            <p className="text-base font-semibold text-gray-800">登入中，請稍候…</p>
-            <p className="text-xs text-gray-400">正在驗證身分</p>
+            <p className="text-base font-semibold text-t1">登入中，請稍候…</p>
+            <p className="text-xs text-t3">正在驗證身分</p>
           </div>
         </div>
       )}

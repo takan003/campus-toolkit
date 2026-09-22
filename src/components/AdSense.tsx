@@ -27,7 +27,7 @@ export default function AdSense() {
 
   return (
     <div className="text-center py-4">
-      <p className="text-sm text-gray-400 mb-2">&gt;&gt;以下廣告由Google AdSense推播&lt;&lt;</p>
+      <p className="text-sm text-t3 mb-2">&gt;&gt;以下廣告由Google AdSense推播&lt;&lt;</p>
 
       {/* 橫幅廣告 320x50 */}
       <div className="flex justify-center mb-2">

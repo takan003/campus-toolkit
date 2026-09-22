@@ -263,6 +263,43 @@ mark {
   color: var(--bg);
 }
 
+/* 主題化工具類別 */
+.bg-page { background-color: var(--bg); }
+.bg-card { background-color: var(--card); }
+.bg-surface { background-color: var(--bg2); }
+.bg-hover { background-color: var(--bg2); }
+.text-t1 { color: var(--t1); }
+.text-t2 { color: var(--t2); }
+.text-t3 { color: var(--t3); }
+.border-themed { border-color: var(--bd); }
+.border-themed-l { border-color: var(--bd2); }
+.border-themed-light { border-color: var(--bd); }
+.bg-btn { background-color: var(--btn-secondary); color: var(--btn-secondary-text); border: 1px solid var(--btn-secondary-hover); }
+.bg-btn:hover { background-color: var(--btn-secondary-hover); color: var(--btn-secondary-text-hover); }
+.input-theme {
+  background-color: var(--bg2);
+  color: var(--t1);
+  border: 1px solid var(--bd2);
+}
+.input-theme::placeholder { color: var(--t3); }
+.input-theme:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(124,140,240,.15);
+}
+.btn-theme {
+  background: var(--btn-secondary);
+  color: var(--btn-secondary-text);
+  border: 1px solid var(--btn-secondary-hover);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.btn-theme:hover {
+  background: var(--btn-secondary-hover);
+  color: var(--btn-secondary-text-hover);
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }

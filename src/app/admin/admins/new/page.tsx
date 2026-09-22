@@ -66,62 +66,62 @@ export default function NewAdminPage() {
     <div className="max-w-md mx-auto">
       <h2 className="text-2xl font-bold mb-6">新增管理員</h2>
 
-      <div className="bg-white rounded-lg shadow p-6 space-y-4">
+      <div className="bg-card rounded-lg shadow p-6 space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">電子郵件 *</label>
+          <label className="block text-sm font-medium text-t2 mb-1">電子郵件 *</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full border border-gray-300 rounded px-3 py-2"
+            className="w-full input-theme rounded px-3 py-2"
             placeholder="admin@example.com"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">登入帳號 *</label>
+          <label className="block text-sm font-medium text-t2 mb-1">登入帳號 *</label>
           <input
             type="text"
             value={account}
             onChange={(e) => setAccount(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full border border-gray-300 rounded px-3 py-2"
+            className="w-full input-theme rounded px-3 py-2"
             placeholder="admin"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">顯示名稱</label>
+          <label className="block text-sm font-medium text-t2 mb-1">顯示名稱</label>
           <input
             type="text"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full border border-gray-300 rounded px-3 py-2"
+            className="w-full input-theme rounded px-3 py-2"
             placeholder="系統管理員"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">密碼 *</label>
+          <label className="block text-sm font-medium text-t2 mb-1">密碼 *</label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full border border-gray-300 rounded px-3 py-2"
+            className="w-full input-theme rounded px-3 py-2"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">確認密碼 *</label>
+          <label className="block text-sm font-medium text-t2 mb-1">確認密碼 *</label>
           <input
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="w-full border border-gray-300 rounded px-3 py-2"
+            className="w-full input-theme rounded px-3 py-2"
           />
         </div>
 
@@ -138,7 +138,7 @@ export default function NewAdminPage() {
           </button>
           <button
             onClick={() => router.push("/admin")}
-            className="flex-1 bg-gray-200 text-gray-700 py-2 rounded hover:bg-gray-300 cursor-pointer"
+            className="flex-1 btn-theme py-2 rounded cursor-pointer"
           >
             取消
           </button>

@@ -18,14 +18,14 @@ export default function Copyright({ mode }: CopyrightProps) {
 function CopyrightFull() {
   return (
     <div className="text-center py-4">
-      <table className="text-xs mx-auto" style={{ whiteSpace: "nowrap" }}>
+      <table className="text-xs mx-auto" style={{ whiteSpace: "nowrap", width: "auto", borderCollapse: "initial" }}>
         <tbody>
-          <tr className="text-center">
+          <tr className="text-center" style={{ background: "transparent" }}>
             <td
               width={45}
               valign="middle"
               className="px-1 pb-1"
-              style={{ borderBottom: "none" }}
+              style={{ borderBottom: "none", padding: "0 4px 4px", border: "none" }}
             >
               <img
                 width={45}
@@ -34,7 +34,7 @@ function CopyrightFull() {
                 alt="Hey!"
               />
             </td>
-            <td style={{ borderBottom: "none" }}>
+            <td style={{ borderBottom: "none", padding: "0", border: "none" }}>
       <div>{versionText}</div>
       <div>Powered by Next.js on Vercel</div>
               <div className="flex items-center justify-center gap-2 my-1 flex-wrap">
@@ -129,7 +129,7 @@ function CopyrightFull() {
               width={45}
               valign="middle"
               className="px-1 pb-1"
-              style={{ borderBottom: "none" }}
+              style={{ borderBottom: "none", padding: "0 4px 4px", border: "none" }}
             >
               <img
                 width={45}

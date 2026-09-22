@@ -5,13 +5,15 @@ import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
+import { UserRole, ROLE_HOME, ROLE_LABELS, isUserRole } from "@/types/users";
+import { getSession } from "@/lib/session";
 import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
 
 export default function Home() {
   const router = useRouter();
   const [settings, setSettings] = useState<Settings>(defaultSettings);
-  const [role, setRole] = useState<"student" | "staff" | "admin">("student");
+  const [role, setRole] = useState<UserRole>("student");
   const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -20,15 +22,10 @@ export default function Home() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    const session = localStorage.getItem("user_session");
-    if (session) {
-      try {
-        const user = JSON.parse(session);
-        if (user.role === "admin") {
-          router.push("/admin");
-          return;
-        }
-      } catch {}
+    const session = getSession();
+    if (session && isUserRole(session.role)) {
+      router.push(ROLE_HOME[session.role]);
+      return;
     }
     setCheckingSession(false);
   }, [router]);
@@ -61,7 +58,7 @@ export default function Home() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ account, password }),
+        body: JSON.stringify({ account, password, role }),
       });
 
       const data = await res.json();
@@ -76,12 +73,13 @@ export default function Home() {
         "user_session",
         JSON.stringify({
           ...data.user,
-          role: "admin",
+          role: data.user.role || role,
           loginTime: Date.now(),
         })
       );
 
-      router.push("/admin");
+      const home = ROLE_HOME[(data.user.role || role) as UserRole] || "/";
+      router.push(home);
     } catch {
       setError("系統錯誤，請稍後再試");
       setLoading(false);
@@ -131,7 +129,7 @@ export default function Home() {
         </p>
 
         {/* 身分選擇 */}
-        <div className="flex justify-center gap-6 mb-6">
+        <div className="flex justify-center gap-4 mb-6 flex-wrap">
           <label className="flex items-center gap-1 cursor-pointer">
             <input
               type="radio"
@@ -141,7 +139,18 @@ export default function Home() {
               onChange={() => setRole("student")}
               className="accent-black"
             />
-            <span>學生</span>
+            <span>{ROLE_LABELS.student}</span>
+          </label>
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input
+              type="radio"
+              name="role"
+              value="parent"
+              checked={role === "parent"}
+              onChange={() => setRole("parent")}
+              className="accent-black"
+            />
+            <span>{ROLE_LABELS.parent}</span>
           </label>
           <label className="flex items-center gap-1 cursor-pointer">
             <input
@@ -152,7 +161,7 @@ export default function Home() {
               onChange={() => setRole("staff")}
               className="accent-black"
             />
-            <span>教職員</span>
+            <span>{ROLE_LABELS.staff}</span>
           </label>
           <label className="flex items-center gap-1 cursor-pointer">
             <input
@@ -163,7 +172,7 @@ export default function Home() {
               onChange={() => setRole("admin")}
               className="accent-black"
             />
-            <span>管理員</span>
+            <span>{ROLE_LABELS.admin}</span>
           </label>
         </div>
 

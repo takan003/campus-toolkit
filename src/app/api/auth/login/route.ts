@@ -2,30 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { verifyPassword } from "@/lib/auth";
-import { AdminUser } from "@/types/admin";
+import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 
 const LOCK_THRESHOLD = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
 
 export async function POST(request: NextRequest) {
   try {
-    const { account, password } = await request.json();
+    const { account, password, role } = await request.json();
 
     if (!account || !password) {
       return NextResponse.json({ success: false, message: "請輸入帳號與密碼" });
     }
 
-    const adminsRef = collection(db, "admins");
+    if (!isUserRole(role)) {
+      return NextResponse.json({ success: false, message: "請選擇身分" });
+    }
+
+    const collectionName = ROLE_COLLECTIONS[role];
+    const usersRef = collection(db, collectionName);
 
     const input = account.toLowerCase().trim();
     const isEmail = input.includes("@");
 
-    let q;
-    if (isEmail) {
-      q = query(adminsRef, where("email", "==", input));
-    } else {
-      q = query(adminsRef, where("account", "==", input));
-    }
+    const q = isEmail
+      ? query(usersRef, where("email", "==", input))
+      : query(usersRef, where("account", "==", input));
 
     const snapshot = await getDocs(q);
 
@@ -33,24 +35,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "帳號或密碼錯誤" });
     }
 
-    const adminDoc = snapshot.docs[0];
-    const adminData = adminDoc.data() as AdminUser;
+    const userDoc = snapshot.docs[0];
+    const userData = userDoc.data();
 
-    if (adminData.lockedUntil && Date.now() < adminData.lockedUntil) {
-      const remainMin = Math.ceil((adminData.lockedUntil - Date.now()) / 60000);
+    if (userData.lockedUntil && Date.now() < userData.lockedUntil) {
+      const remainMin = Math.ceil((userData.lockedUntil - Date.now()) / 60000);
       return NextResponse.json({
         success: false,
         message: `帳號已鎖定，請 ${remainMin} 分鐘後再試`,
       });
     }
 
-    const isValid = await verifyPassword(password, adminData.passwordHash);
+    const isValid = await verifyPassword(password, userData.passwordHash);
 
     if (!isValid) {
-      const newFailCount = (adminData.failedAttempts || 0) + 1;
+      const newFailCount = (userData.failedAttempts || 0) + 1;
       const lockUntil = newFailCount >= LOCK_THRESHOLD ? Date.now() + LOCK_DURATION_MS : 0;
 
-      await updateDoc(doc(db, "admins", adminDoc.id), {
+      await updateDoc(doc(db, collectionName, userDoc.id), {
         failedAttempts: newFailCount,
         lockedUntil: lockUntil,
       });
@@ -65,21 +67,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "帳號或密碼錯誤" });
     }
 
-    await updateDoc(doc(db, "admins", adminDoc.id), {
+    const now = Date.now();
+    const loginRecords =
+      role === "admin"
+        ? undefined
+        : [...((userData.loginRecords as number[]) || []), now].slice(-50);
+
+    await updateDoc(doc(db, collectionName, userDoc.id), {
       failedAttempts: 0,
       lockedUntil: 0,
-      lastLogin: Date.now(),
+      lastLogin: now,
       lastLoginMethod: "password",
-      loginCount: (adminData.loginCount || 0) + 1,
+      loginCount: (userData.loginCount || 0) + 1,
+      ...(loginRecords ? { loginRecords } : {}),
     });
 
     return NextResponse.json({
       success: true,
       user: {
-        uid: adminDoc.id,
-        email: adminData.email,
-        account: adminData.account,
-        displayName: adminData.displayName,
+        uid: userDoc.id,
+        email: userData.email,
+        account: userData.account,
+        displayName: userData.name || userData.displayName || "",
+        role,
       },
     });
   } catch (error) {

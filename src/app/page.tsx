@@ -160,14 +160,29 @@ export default function Home() {
 
       router.push(ROLE_HOME[role]);
     } catch (err: unknown) {
-      const code = (err as { code?: string })?.code;
+      console.error("Google login error:", err);
+      const e = err as { code?: string; message?: string };
+      const code = e?.code || "";
+      const message = e?.message || String(err);
+
       if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
         setError("");
       } else if (code === "auth/popup-blocked") {
         setError("彈出視窗被瀏覽器封鎖，請允許後重試");
+      } else if (code === "auth/unauthorized-domain") {
+        setError("此網域未在 Firebase 授權，請至 Console → Settings → Authorized domains 加入");
+      } else if (code === "auth/operation-not-allowed") {
+        setError("Firebase 未啟用 Google 供應商，請至 Console → Authentication → Sign-in method 啟用");
+      } else if (code === "auth/invalid-api-key" || code === "auth/api-key-not-valid") {
+        setError("Firebase API Key 無效，請檢查 .env.local");
+      } else if (code === "auth/configuration-not-found") {
+        setError("Firebase 未找到 Google 登入設定，請確認供應商已啟用");
+      } else if (code === "auth/network-request-failed") {
+        setError("網路錯誤，無法連線 Firebase");
+      } else if (code) {
+        setError(`Google 登入失敗（${code}）`);
       } else {
-        console.error("Google login error:", err);
-        setError("Google 登入失敗，請稍後再試");
+        setError(`Google 登入失敗：${message}`);
       }
       setGoogleLoading(false);
     }

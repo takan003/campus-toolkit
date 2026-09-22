@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
+import HelpTooltip from "@/components/HelpTooltip";
 import { builtinThemes } from "@/lib/themes";
 
 interface FormField {
@@ -15,6 +16,7 @@ interface FormField {
   type: "text" | "number" | "select" | "email";
   placeholder?: string;
   options?: { value: string; label: string }[];
+  help?: string;
 }
 
 interface SettingGroup {
@@ -104,7 +106,12 @@ const settingGroups: SettingGroup[] = [
         ],
       },
       { id: "passwordCostFactor", label: "密碼雜湊迭代次數（千次）", type: "number" },
-      { id: "sessionTimeout", label: "閒置逾時（分鐘）", type: "number" },
+      {
+        id: "sessionTimeout",
+        label: "閒置逾時（分鐘）",
+        type: "number",
+        help: "登入後閒置不用逾時將自動登出",
+      },
     ],
   },
   {
@@ -310,7 +317,10 @@ export default function SettingsPage() {
             <div className="space-y-4">
               {group.fields.map((field) => (
                 <div key={field.id} className="flex flex-col sm:flex-row sm:items-center gap-2">
-                  <label className="text-t2 sm:w-48 shrink-0">{field.label}</label>
+                  <label className="text-t2 sm:w-48 shrink-0 flex items-center gap-1.5">
+                    <span>{field.label}</span>
+                    {field.help && <HelpTooltip text={field.help} />}
+                  </label>
                   {field.type === "select" ? (
                     <select
                       value={getFieldValue(field.id)}

@@ -1,41 +1,20 @@
 import "server-only";
-import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { UserRole, isUserRole } from "@/types/users";
+import { UserRole } from "@/types/users";
+import {
+  SESSION_COOKIE,
+  SESSION_MAX_AGE_SECONDS,
+  SessionPayload,
+  signSessionToken,
+  verifySessionToken,
+} from "@/lib/session-token";
 
-export const SESSION_COOKIE = "session";
-const ABSOLUTE_MAX_AGE_SECONDS = 12 * 60 * 60;
-
-export interface SessionPayload {
-  uid: string;
-  email: string;
-  account: string;
-  displayName: string;
-  role: UserRole;
-}
-
-function getSecretKey(): Uint8Array {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret || secret.length < 32) {
-    throw new Error("SESSION_SECRET 未設定或長度不足 32 字元");
-  }
-  return new TextEncoder().encode(secret);
-}
+export { SESSION_COOKIE };
+export type { SessionPayload };
 
 export async function createSession(payload: SessionPayload): Promise<void> {
-  const token = await new SignJWT({
-    uid: payload.uid,
-    email: payload.email,
-    account: payload.account,
-    displayName: payload.displayName,
-    role: payload.role,
-  })
-    .setProtectedHeader({ alg: "HS256" })
-    .setIssuedAt()
-    .setExpirationTime(`${ABSOLUTE_MAX_AGE_SECONDS}s`)
-    .setJti(crypto.randomUUID())
-    .sign(getSecretKey());
+  const token = await signSessionToken(payload);
 
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
@@ -43,7 +22,7 @@ export async function createSession(payload: SessionPayload): Promise<void> {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: ABSOLUTE_MAX_AGE_SECONDS,
+    maxAge: SESSION_MAX_AGE_SECONDS,
   });
 }
 
@@ -51,26 +30,7 @@ export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-
-  try {
-    const { payload } = await jwtVerify(token, getSecretKey(), {
-      algorithms: ["HS256"],
-    });
-
-    if (!payload || !isUserRole(payload.role) || typeof payload.uid !== "string" || !payload.uid) {
-      return null;
-    }
-
-    return {
-      uid: payload.uid,
-      email: typeof payload.email === "string" ? payload.email : "",
-      account: typeof payload.account === "string" ? payload.account : "",
-      displayName: typeof payload.displayName === "string" ? payload.displayName : "",
-      role: payload.role,
-    };
-  } catch {
-    return null;
-  }
+  return verifySessionToken(token);
 }
 
 export async function deleteSession(): Promise<void> {

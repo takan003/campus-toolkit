@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { hashPassword } from "@/lib/auth";
-import { getSession, unauthorized, forbidden } from "@/lib/server-session";
+import { requireRole, toAuthResponse } from "@/lib/dal";
 
 async function requireAdmin() {
-  const session = await getSession();
-  if (!session) return unauthorized();
-  if (session.role !== "admin") return forbidden();
+  const { session, denial } = await requireRole("admin");
+  if (denial) return toAuthResponse(denial);
   return null;
 }
 

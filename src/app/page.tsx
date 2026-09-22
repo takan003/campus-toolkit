@@ -7,7 +7,7 @@ import { signInWithPopup, signOut } from "firebase/auth";
 import { db, auth, googleProvider } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import { UserRole, ROLE_HOME, ROLE_LABELS, isUserRole } from "@/types/users";
-import { getSession } from "@/lib/session";
+import { fetchSession, setCachedSession, UserSession } from "@/lib/session";
 import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
 
@@ -24,12 +24,18 @@ export default function Home() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    const session = getSession();
-    if (session && isUserRole(session.role)) {
-      router.push(ROLE_HOME[session.role]);
-      return;
-    }
-    setCheckingSession(false);
+    let cancelled = false;
+    fetchSession(true).then((session) => {
+      if (cancelled) return;
+      if (session && isUserRole(session.role)) {
+        router.push(ROLE_HOME[session.role]);
+        return;
+      }
+      setCheckingSession(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   useEffect(() => {
@@ -71,16 +77,16 @@ export default function Home() {
         return;
       }
 
-      sessionStorage.setItem(
-        "user_session",
-        JSON.stringify({
-          ...data.user,
-          role: data.user.role || role,
-          loginTime: Date.now(),
-        })
-      );
+      const user: UserSession = {
+        uid: data.user.uid,
+        email: data.user.email || "",
+        account: data.user.account || "",
+        displayName: data.user.displayName || "",
+        role: (data.user.role || role) as UserRole,
+      };
+      setCachedSession(user);
 
-      const home = ROLE_HOME[(data.user.role || role) as UserRole] || "/";
+      const home = ROLE_HOME[user.role] || "/";
       router.push(home);
     } catch {
       setError("系統錯誤，請稍後再試");
@@ -124,13 +130,14 @@ export default function Home() {
         return;
       }
 
-      sessionStorage.setItem(
-        "user_session",
-        JSON.stringify({
-          ...data.user,
-          loginTime: Date.now(),
-        })
-      );
+      const user: UserSession = {
+        uid: data.user.uid,
+        email: data.user.email || "",
+        account: data.user.account || "",
+        displayName: data.user.displayName || "",
+        role: (data.user.role || role) as UserRole,
+      };
+      setCachedSession(user);
 
       router.push(ROLE_HOME[role]);
     } catch (err: unknown) {

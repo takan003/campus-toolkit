@@ -6,24 +6,62 @@ export interface UserSession {
   account: string;
   displayName: string;
   role: UserRole;
-  loginTime?: number;
 }
 
-export function getSession(): UserSession | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem("user_session");
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || !isUserRole(parsed.role)) return null;
-    return parsed as UserSession;
-  } catch {
-    return null;
-  }
+let cached: UserSession | null = null;
+let checked = false;
+let inFlight: Promise<UserSession | null> | null = null;
+
+function toUserSession(user: unknown): UserSession | null {
+  if (!user || typeof user !== "object") return null;
+  const u = user as Record<string, unknown>;
+  if (!isUserRole(u.role) || typeof u.uid !== "string" || !u.uid) return null;
+  return {
+    uid: u.uid,
+    email: typeof u.email === "string" ? u.email : "",
+    account: typeof u.account === "string" ? u.account : "",
+    displayName: typeof u.displayName === "string" ? u.displayName : "",
+    role: u.role,
+  };
 }
 
-export function clearSession() {
-  sessionStorage.removeItem("user_session");
+export function getCachedSession(): UserSession | null {
+  return cached;
+}
+
+export async function fetchSession(force = false): Promise<UserSession | null> {
+  if (!force && checked && !inFlight) return cached;
+  if (inFlight && !force) return inFlight;
+
+  inFlight = (async () => {
+    try {
+      const res = await fetch("/api/auth/me", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        cached = toUserSession(data.user);
+      } else {
+        cached = null;
+      }
+    } catch {
+      cached = null;
+    } finally {
+      checked = true;
+      inFlight = null;
+    }
+    return cached;
+  })();
+
+  return inFlight;
+}
+
+export function setCachedSession(user: UserSession): void {
+  cached = user;
+  checked = true;
+}
+
+export function clearSession(): void {
+  cached = null;
+  checked = true;
 }
 
 export async function logout(): Promise<void> {

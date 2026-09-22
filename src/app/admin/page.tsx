@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
-import { getSession, logout, UserSession } from "@/lib/session";
+import { fetchSession, logout, UserSession } from "@/lib/session";
 
 interface ModuleCard {
   icon: React.ReactNode;
@@ -62,12 +62,18 @@ export default function AdminPage() {
   const [user, setUser] = useState<UserSession | null>(null);
 
   useEffect(() => {
-    const session = getSession();
-    if (!session || session.role !== "admin") {
-      router.push("/");
-      return;
-    }
-    setUser(session);
+    let cancelled = false;
+    fetchSession(true).then((session) => {
+      if (cancelled) return;
+      if (!session || session.role !== "admin") {
+        router.push("/");
+        return;
+      }
+      setUser(session);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   useEffect(() => {

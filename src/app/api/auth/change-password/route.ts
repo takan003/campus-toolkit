@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { verifyPassword, hashPassword } from "@/lib/auth";
-import { getSession, unauthorized, forbidden } from "@/lib/server-session";
+import { verifySession } from "@/lib/dal";
+import { createSession, unauthorized, forbidden } from "@/lib/server-session";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 
 export async function POST(request: NextRequest) {
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "無效的角色" });
     }
 
-    const session = await getSession();
+    const session = await verifySession();
     if (!session) return unauthorized();
     if (session.role !== role) return forbidden("身分不符");
     if (session.account !== account.toLowerCase().trim() && session.email !== account.toLowerCase().trim()) {
@@ -51,9 +52,19 @@ export async function POST(request: NextRequest) {
     }
 
     const passwordHash = await hashPassword(newPassword, 12);
+    const newTokenVersion = (userData.tokenVersion || 1) + 1;
     await updateDoc(doc(db, collectionName, userDoc.id), {
       passwordHash,
-      tokenVersion: (userData.tokenVersion || 1) + 1,
+      tokenVersion: newTokenVersion,
+    });
+
+    await createSession({
+      uid: session.uid,
+      email: session.email,
+      account: session.account,
+      displayName: session.displayName,
+      role: session.role,
+      tokenVersion: newTokenVersion,
     });
 
     return NextResponse.json({ success: true, message: "密碼已更新" });

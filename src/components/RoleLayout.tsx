@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getSession } from "@/lib/session";
+import { fetchSession } from "@/lib/session";
 
 export default function RoleLayout({
   children,
@@ -14,10 +14,16 @@ export default function RoleLayout({
   const router = useRouter();
 
   useEffect(() => {
-    const session = getSession();
-    if (!session || session.role !== role) {
-      router.push("/");
-    }
+    let cancelled = false;
+    fetchSession(true).then((session) => {
+      if (cancelled) return;
+      if (!session || session.role !== role) {
+        router.push("/");
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [router, role]);
 
   return <>{children}</>;

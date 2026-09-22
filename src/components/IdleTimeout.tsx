@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { defaultSettings } from "@/types/settings";
-import { getSession, logout as clearSession } from "@/lib/session";
+import { getCachedSession, fetchSession, logout as clearSession } from "@/lib/session";
 
 const WARNING_SECONDS = 30;
 const TICK_MS = 1000;
@@ -66,9 +66,13 @@ export default function IdleTimeout() {
   }, [router]);
 
   useEffect(() => {
+    void fetchSession();
+  }, []);
+
+  useEffect(() => {
     function handleActivity() {
       if (warnedRef.current) return;
-      if (!getSession()) return;
+      if (!getCachedSession()) return;
       lastActivityRef.current = Date.now();
     }
 
@@ -77,7 +81,7 @@ export default function IdleTimeout() {
     });
 
     const timer = window.setInterval(() => {
-      const session = getSession();
+      const session = getCachedSession();
 
       if (!session) {
         if (hadSessionRef.current) {

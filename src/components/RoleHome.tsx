@@ -6,7 +6,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import { UserRole, ROLE_HOME, ROLE_LABELS } from "@/types/users";
-import { getSession, logout } from "@/lib/session";
+import { fetchSession, logout } from "@/lib/session";
 import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
 
@@ -25,12 +25,18 @@ export default function RoleHome({ role }: { role: Exclude<UserRole, "admin"> })
   const [displayName, setDisplayName] = useState("");
 
   useEffect(() => {
-    const session = getSession();
-    if (!session || session.role !== role) {
-      router.push("/");
-      return;
-    }
-    setDisplayName(session.displayName);
+    let cancelled = false;
+    fetchSession(true).then((session) => {
+      if (cancelled) return;
+      if (!session || session.role !== role) {
+        router.push("/");
+        return;
+      }
+      setDisplayName(session.displayName);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [router, role]);
 
   useEffect(() => {

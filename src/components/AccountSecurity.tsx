@@ -6,7 +6,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import { UserRole, ROLE_COLLECTIONS, ROLE_LABELS, ROLE_SPECIFIC_FIELDS, isUserRole } from "@/types/users";
-import { getSession, logout } from "@/lib/session";
+import { fetchSession, logout } from "@/lib/session";
 import Copyright from "@/components/Copyright";
 
 export default function AccountSecurityPage({ role }: { role: Exclude<UserRole, "admin"> }) {
@@ -23,15 +23,22 @@ export default function AccountSecurityPage({ role }: { role: Exclude<UserRole, 
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    const session = getSession();
-    if (!session || session.role !== role) {
-      router.push("/");
-      return;
-    }
-    setAccount(session.account);
-    setEmail(session.email);
-    setName(session.displayName);
-    loadUserData(session.uid);
+    let cancelled = false;
+    fetchSession(true).then((session) => {
+      if (cancelled) return;
+      if (!session || session.role !== role) {
+        router.push("/");
+        return;
+      }
+      setAccount(session.account);
+      setEmail(session.email);
+      setName(session.displayName);
+      loadUserData(session.uid);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router, role]);
 
   useEffect(() => {

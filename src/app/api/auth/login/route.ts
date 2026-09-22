@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
       account: userData.account,
       displayName: userData.name || userData.displayName || "",
       role,
+      tokenVersion: typeof userData.tokenVersion === "number" ? userData.tokenVersion : 1,
     };
 
     await createSession(user);

@@ -12,7 +12,7 @@ export interface UserSession {
 export function getSession(): UserSession | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem("user_session");
+    const raw = sessionStorage.getItem("user_session");
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || !isUserRole(parsed.role)) return null;
@@ -23,7 +23,7 @@ export function getSession(): UserSession | null {
 }
 
 export function clearSession() {
-  localStorage.removeItem("user_session");
+  sessionStorage.removeItem("user_session");
 }
 
 export function getHomePath(role: UserRole): string {

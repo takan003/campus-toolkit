@@ -71,7 +71,7 @@ export default function Home() {
         return;
       }
 
-      localStorage.setItem(
+      sessionStorage.setItem(
         "user_session",
         JSON.stringify({
           ...data.user,
@@ -146,7 +146,7 @@ export default function Home() {
         ...(loginRecords ? { loginRecords } : {}),
       });
 
-      localStorage.setItem(
+      sessionStorage.setItem(
         "user_session",
         JSON.stringify({
           uid: userDoc.id,

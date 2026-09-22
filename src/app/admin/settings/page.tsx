@@ -224,7 +224,7 @@ export default function SettingsPage() {
   }
 
   function handleLogout() {
-    localStorage.removeItem("user_session");
+    sessionStorage.removeItem("user_session");
     router.push("/");
   }
 

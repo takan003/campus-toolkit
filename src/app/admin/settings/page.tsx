@@ -145,7 +145,8 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  const [modalMessage, setModalMessage] = useState("");
 
   useEffect(() => {
     loadSettings();
@@ -162,7 +163,9 @@ export default function SettingsPage() {
     } catch (error: unknown) {
       console.error("載入設定失敗:", error);
       const errMsg = error instanceof Error ? error.message : String(error);
-      setMessage("載入失敗: " + errMsg);
+      setModalMessage("載入失敗: " + errMsg);
+      setShowModal(true);
+      setTimeout(() => setShowModal(false), 3000);
     } finally {
       setLoading(false);
     }
@@ -170,15 +173,18 @@ export default function SettingsPage() {
 
   async function handleSave() {
     setSaving(true);
-    setMessage("");
     try {
       const docRef = doc(db, "settings", "system");
       await setDoc(docRef, settings);
-      setMessage("設定已儲存！");
+      setModalMessage("設定已儲存！");
+      setShowModal(true);
+      setTimeout(() => setShowModal(false), 3000);
     } catch (error: unknown) {
       console.error("儲存設定失敗:", error);
       const errMsg = error instanceof Error ? error.message : String(error);
-      setMessage("儲存失敗: " + errMsg);
+      setModalMessage("儲存失敗: " + errMsg);
+      setShowModal(true);
+      setTimeout(() => setShowModal(false), 3000);
     } finally {
       setSaving(false);
     }
@@ -268,13 +274,6 @@ export default function SettingsPage() {
 
       <hr className="w-full max-w-2xl border-gray-300 mb-4" />
 
-      {/* 訊息 */}
-      {message && (
-        <div className={`w-full max-w-2xl text-center mb-4 ${message.includes("失敗") ? "text-red-500" : "text-green-600"}`}>
-          {message}
-        </div>
-      )}
-
       {/* 設定分組卡片 */}
       <div className="w-full max-w-2xl space-y-4 mb-8">
         {settingGroups.map((group) => (
@@ -354,6 +353,29 @@ export default function SettingsPage() {
       <div className="w-full max-w-2xl mt-auto">
         <Copyright mode={settings.copyrightNotice ? "啟用" : "關閉"} />
       </div>
+
+      {/* Modal 訊息視窗 */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(3px)" }}>
+          <div className="bg-white rounded-2xl p-8 text-center space-y-4 shadow-lg animate-fade-in">
+            <div className="flex justify-center">
+              {modalMessage.includes("失敗") ? (
+                <svg className="w-12 h-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+              ) : (
+                <svg className="w-12 h-12 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              )}
+            </div>
+            <p className={`text-lg font-semibold ${modalMessage.includes("失敗") ? "text-red-600" : "text-gray-800"}`}>
+              {modalMessage}
+            </p>
+            <p className="text-xs text-gray-400">視窗將自動關閉</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

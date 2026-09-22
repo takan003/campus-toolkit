@@ -132,13 +132,13 @@ export default function NewAdminPage() {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="flex-1 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+            className="flex-1 bg-blue-500 text-white py-2 rounded hover:bg-blue-600 disabled:opacity-50 cursor-pointer"
           >
             {loading ? "建立中..." : "建立管理員"}
           </button>
           <button
             onClick={() => router.push("/admin")}
-            className="flex-1 bg-gray-200 text-gray-700 py-2 rounded hover:bg-gray-300"
+            className="flex-1 bg-gray-200 text-gray-700 py-2 rounded hover:bg-gray-300 cursor-pointer"
           >
             取消
           </button>

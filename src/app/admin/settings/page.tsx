@@ -248,19 +248,19 @@ export default function SettingsPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer cursor-pointer disabled:opacity-50"
         >
           {saving ? "儲存中..." : "儲存設定"}
         </button>
         <button
           onClick={handleBack}
-          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
         >
           返回功能首頁
         </button>
         <button
           onClick={handleLogout}
-          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
         >
           登出
         </button>
@@ -325,19 +325,19 @@ export default function SettingsPage() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer cursor-pointer disabled:opacity-50"
         >
           {saving ? "儲存中..." : "儲存設定"}
         </button>
         <button
           onClick={handleBack}
-          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
         >
           返回功能首頁
         </button>
         <button
           onClick={handleLogout}
-          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
         >
           登出
         </button>

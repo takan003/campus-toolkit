@@ -132,7 +132,7 @@ export default function AdminPage() {
       <div className="w-full max-w-2xl flex justify-end mb-4">
         <button
           onClick={handleLogout}
-          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
         >
           登出
         </button>
@@ -151,7 +151,7 @@ export default function AdminPage() {
           <button
             key={mod.label}
             onClick={() => router.push(mod.href)}
-            className="flex items-center gap-3 border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors text-left"
+            className="flex items-center gap-3 border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer text-left"
           >
             <span className="text-gray-500">{mod.icon}</span>
             <span className="font-medium text-gray-700">{mod.label}</span>
@@ -165,7 +165,7 @@ export default function AdminPage() {
       <div className="w-full max-w-2xl mb-8">
         <button
           onClick={handleLogout}
-          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+          className="border border-gray-300 rounded-lg px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
         >
           登出
         </button>

@@ -126,7 +126,7 @@ export default function SetupPage() {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full bg-black text-white py-3 rounded font-medium hover:bg-gray-800 disabled:opacity-50"
+            className="w-full bg-black text-white py-3 rounded font-medium hover:bg-gray-800 disabled:opacity-50 cursor-pointer"
           >
             {loading ? "建立中..." : "建立管理員"}
           </button>

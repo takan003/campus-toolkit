@@ -11,7 +11,7 @@ interface FormField {
   label: string;
   type: "text" | "number" | "select" | "email";
   placeholder?: string;
-  options?: { value: number; label: string }[];
+  options?: { value: string; label: string }[];
 }
 
 interface SettingGroup {
@@ -29,12 +29,12 @@ const settingGroups: SettingGroup[] = [
       </svg>
     ),
     fields: [
-      { id: "systemName", label: "系統自命名", type: "text", placeholder: "例如：數位校園工具箱" },
-      { id: "schoolFullName", label: "學校全稱", type: "text", placeholder: "例如：國立花蓮女子高級中學" },
-      { id: "schoolShortName", label: "學校簡稱", type: "text", placeholder: "例如：國立花蓮女中" },
-      { id: "schoolOtherNames", label: "學校其他別名", type: "text", placeholder: "例如：花蓮女中,花女" },
+      { id: "systemName", label: "系統自命名", type: "text", placeholder: "" },
+      { id: "schoolFullName", label: "學校全稱", type: "text", placeholder: "" },
+      { id: "schoolShortName", label: "學校簡稱", type: "text", placeholder: "" },
+      { id: "schoolOtherNames", label: "學校其他別名", type: "text", placeholder: "" },
       { id: "academicYear", label: "學年度", type: "number" },
-      { id: "schoolCode", label: "教育部學校代碼", type: "text", placeholder: "例如：150302" },
+      { id: "schoolCode", label: "教育部學校代碼", type: "text", placeholder: "" },
     ],
   },
   {
@@ -45,8 +45,8 @@ const settingGroups: SettingGroup[] = [
       </svg>
     ),
     fields: [
-      { id: "contactPerson", label: "系統承辦人員", type: "text", placeholder: "例如：張家誠" },
-      { id: "contactEmail", label: "承辦人員電子郵件", type: "email", placeholder: "例如：takan003@gms.hlgs.hlc.edu.tw" },
+      { id: "contactPerson", label: "系統承辦人員", type: "text", placeholder: "" },
+      { id: "contactEmail", label: "承辦人員電子郵件", type: "email", placeholder: "" },
     ],
   },
   {
@@ -63,8 +63,8 @@ const settingGroups: SettingGroup[] = [
         label: "系統狀態",
         type: "select",
         options: [
-          { value: 1, label: "啟用" },
-          { value: 0, label: "停用" },
+          { value: "true", label: "啟用" },
+          { value: "false", label: "停用" },
         ],
       },
       {
@@ -72,38 +72,57 @@ const settingGroups: SettingGroup[] = [
         label: "啟用 Google OAuth",
         type: "select",
         options: [
-          { value: 1, label: "啟用" },
-          { value: 0, label: "停用" },
+          { value: "true", label: "啟用" },
+          { value: "false", label: "停用" },
         ],
       },
-      { id: "oauthClientId", label: "OAuth 用戶端 ID", type: "text", placeholder: "Google OAuth Client ID" },
+      { id: "oauthClientId", label: "OAuth 用戶端 ID", type: "text", placeholder: "" },
+      {
+        id: "totpEnabled",
+        label: "OAuth 下的 TOTP 狀態",
+        type: "select",
+        options: [
+          { value: "true", label: "啟用" },
+          { value: "false", label: "關閉" },
+        ],
+      },
+      {
+        id: "workspaceLoginEnabled",
+        label: "啟用Workspace同機構帳號登入",
+        type: "select",
+        options: [
+          { value: "true", label: "啟用" },
+          { value: "false", label: "停用" },
+        ],
+      },
+      {
+        id: "twoFactorEnabled",
+        label: "兩階段驗證",
+        type: "select",
+        options: [
+          { value: "true", label: "啟用" },
+          { value: "false", label: "停用" },
+        ],
+      },
+      { id: "passwordCostFactor", label: "密碼雜湊迭代次數（千次）", type: "number" },
+      { id: "sessionTimeout", label: "閒置逾時（分鐘）", type: "number" },
     ],
   },
   {
-    title: "進階設定",
+    title: "外觀與顯示",
     icon: (
       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
       </svg>
     ),
     fields: [
-      {
-        id: "semester",
-        label: "學期",
-        type: "select",
-        options: [
-          { value: 1, label: "第一學期" },
-          { value: 2, label: "第二學期" },
-        ],
-      },
       {
         id: "copyrightNotice",
         label: "原創版權宣告",
         type: "select",
         options: [
-          { value: 1, label: "啟用" },
-          { value: 0, label: "停用" },
+          { value: "true", label: "顯示" },
+          { value: "false", label: "隱藏" },
         ],
       },
       {
@@ -111,11 +130,10 @@ const settingGroups: SettingGroup[] = [
         label: "贊助廣告",
         type: "select",
         options: [
-          { value: 1, label: "啟用" },
-          { value: 0, label: "停用" },
+          { value: "true", label: "顯示" },
+          { value: "false", label: "隱藏" },
         ],
       },
-      { id: "passwordCostFactor", label: "密碼雜湊強度 (10-14)", type: "number" },
     ],
   },
 ];
@@ -173,15 +191,29 @@ export default function SettingsPage() {
     router.push("/");
   }
 
+  function getFieldValue(id: keyof Settings): string {
+    const val = settings[id];
+    if (typeof val === "boolean") return val ? "true" : "false";
+    return String(val);
+  }
+
   function handleChange(id: keyof Settings, value: string) {
-    if (id === "academicYear" || id === "semester" || id === "passwordCostFactor") {
+    const booleanFields: (keyof Settings)[] = [
+      "systemEnabled", "oauthEnabled", "totpEnabled",
+      "workspaceLoginEnabled", "twoFactorEnabled",
+      "copyrightNotice", "sponsorAdEnabled",
+    ];
+    const numberFields: (keyof Settings)[] = [
+      "academicYear", "passwordCostFactor", "sessionTimeout",
+    ];
+
+    if (booleanFields.includes(id)) {
+      setSettings({ ...settings, [id]: value === "true" });
+    } else if (numberFields.includes(id)) {
       let numVal = Number(value);
-      if (id === "passwordCostFactor") {
-        numVal = Math.min(14, Math.max(10, numVal));
-      }
+      if (id === "passwordCostFactor") numVal = Math.min(99, Math.max(1, numVal));
+      if (id === "sessionTimeout") numVal = Math.max(1, numVal);
       setSettings({ ...settings, [id]: numVal });
-    } else if (id === "systemEnabled" || id === "oauthEnabled" || id === "copyrightNotice" || id === "sponsorAdEnabled") {
-      setSettings({ ...settings, [id]: value === "1" });
     } else {
       setSettings({ ...settings, [id]: value });
     }
@@ -198,10 +230,8 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto p-4 pt-6">
-        {/* 標題 */}
         <h1 className="text-2xl font-bold text-center mb-6">系統設定</h1>
 
-        {/* 操作按鈕 */}
         <div className="flex justify-center gap-3 mb-6">
           <button
             onClick={handleSave}
@@ -224,31 +254,27 @@ export default function SettingsPage() {
           </button>
         </div>
 
-        {/* 訊息 */}
         {message && (
           <div className={`text-center mb-4 ${message.includes("失敗") ? "text-red-500" : "text-green-600"}`}>
             {message}
           </div>
         )}
 
-        {/* 設定分組卡片 */}
         <div className="space-y-4">
           {settingGroups.map((group) => (
             <div key={group.title} className="bg-white border border-gray-200 rounded-xl p-5">
-              {/* 分組標題 */}
               <div className="flex items-center gap-2 mb-4">
                 <span className="text-gray-600">{group.icon}</span>
                 <h2 className="text-lg font-bold">{group.title}</h2>
               </div>
 
-              {/* 欄位列表 */}
               <div className="space-y-4">
                 {group.fields.map((field) => (
                   <div key={field.id} className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <label className="text-gray-600 sm:w-40 shrink-0">{field.label}</label>
+                    <label className="text-gray-600 sm:w-48 shrink-0">{field.label}</label>
                     {field.type === "select" ? (
                       <select
-                        value={settings[field.id] ? "1" : "0"}
+                        value={getFieldValue(field.id)}
                         onChange={(e) => handleChange(field.id, e.target.value)}
                         className="flex-1 border border-gray-300 rounded-lg px-3 py-2 bg-white"
                       >
@@ -264,8 +290,6 @@ export default function SettingsPage() {
                         value={String(settings[field.id])}
                         onChange={(e) => handleChange(field.id, e.target.value)}
                         placeholder={field.placeholder}
-                        min={field.id === "passwordCostFactor" ? 10 : undefined}
-                        max={field.id === "passwordCostFactor" ? 14 : undefined}
                         className="flex-1 border border-gray-300 rounded-lg px-3 py-2"
                       />
                     )}

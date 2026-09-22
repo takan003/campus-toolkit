@@ -10,10 +10,13 @@ export interface Settings {
   contactEmail: string;
   oauthEnabled: boolean;
   oauthClientId: string;
-  semester: number;
+  totpEnabled: boolean;
+  workspaceLoginEnabled: boolean;
+  twoFactorEnabled: boolean;
+  passwordCostFactor: number;
+  sessionTimeout: number;
   copyrightNotice: boolean;
   sponsorAdEnabled: boolean;
-  passwordCostFactor: number;
 }
 
 export const defaultSettings: Settings = {
@@ -28,8 +31,11 @@ export const defaultSettings: Settings = {
   contactEmail: "",
   oauthEnabled: false,
   oauthClientId: "",
-  semester: 1,
+  totpEnabled: false,
+  workspaceLoginEnabled: true,
+  twoFactorEnabled: true,
+  passwordCostFactor: 5,
+  sessionTimeout: 10,
   copyrightNotice: true,
   sponsorAdEnabled: false,
-  passwordCostFactor: 12,
 };

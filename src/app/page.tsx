@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { doc, getDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore";
+import { signInWithPopup, signOut } from "firebase/auth";
+import { db, auth, googleProvider } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
-import { UserRole, ROLE_HOME, ROLE_LABELS, isUserRole } from "@/types/users";
+import { UserRole, ROLE_HOME, ROLE_LABELS, ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 import { getSession } from "@/lib/session";
 import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
@@ -18,6 +19,7 @@ export default function Home() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
   const [checkingSession, setCheckingSession] = useState(true);
 
@@ -89,6 +91,85 @@ export default function Home() {
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter") {
       handleLogin();
+    }
+  }
+
+  async function handleGoogleLogin() {
+    setGoogleLoading(true);
+    setError("");
+
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const email = result.user.email?.toLowerCase().trim();
+
+      if (!email) {
+        await signOut(auth);
+        setError("無法取得 Google 帳號資訊");
+        setGoogleLoading(false);
+        return;
+      }
+
+      const collectionName = ROLE_COLLECTIONS[role];
+      const q = query(collection(db, collectionName), where("email", "==", email));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        await signOut(auth);
+        setError(`此 Google 帳號尚未註冊於「${ROLE_LABELS[role]}」身分，請改用帳號密碼登入或聯繫管理員`);
+        setGoogleLoading(false);
+        return;
+      }
+
+      const userDoc = snapshot.docs[0];
+      const userData = userDoc.data();
+
+      if (userData.lockedUntil && Date.now() < userData.lockedUntil) {
+        await signOut(auth);
+        const remainMin = Math.ceil((userData.lockedUntil - Date.now()) / 60000);
+        setError(`帳號已鎖定，請 ${remainMin} 分鐘後再試`);
+        setGoogleLoading(false);
+        return;
+      }
+
+      const now = Date.now();
+      const loginRecords =
+        role === "admin"
+          ? undefined
+          : [...((userData.loginRecords as number[]) || []), now].slice(-50);
+
+      await updateDoc(doc(db, collectionName, userDoc.id), {
+        failedAttempts: 0,
+        lockedUntil: 0,
+        lastLogin: now,
+        lastLoginMethod: "google",
+        loginCount: (userData.loginCount || 0) + 1,
+        ...(loginRecords ? { loginRecords } : {}),
+      });
+
+      localStorage.setItem(
+        "user_session",
+        JSON.stringify({
+          uid: userDoc.id,
+          email: userData.email,
+          account: userData.account,
+          displayName: userData.name || userData.displayName || "",
+          role,
+          loginTime: now,
+        })
+      );
+
+      router.push(ROLE_HOME[role]);
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        setError("");
+      } else if (code === "auth/popup-blocked") {
+        setError("彈出視窗被瀏覽器封鎖，請允許後重試");
+      } else {
+        console.error("Google login error:", err);
+        setError("Google 登入失敗，請稍後再試");
+      }
+      setGoogleLoading(false);
     }
   }
 
@@ -238,7 +319,11 @@ export default function Home() {
         </div>
 
         {/* Google 登入 */}
-        <button className="w-full btn-theme rounded py-3 flex items-center justify-center gap-2 cursor-pointer">
+        <button
+          onClick={handleGoogleLogin}
+          disabled={googleLoading || loading}
+          className="w-full btn-theme rounded py-3 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+        >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
@@ -257,7 +342,7 @@ export default function Home() {
               fill="#EA4335"
             />
           </svg>
-          以 Google 帳號登入
+          {googleLoading ? "Google 登入中..." : "以 Google 帳號登入"}
         </button>
       </div>
 
@@ -274,17 +359,17 @@ export default function Home() {
       </div>
 
       {/* 登入Loading遮罩 */}
-      {loading && (
+      {(loading || googleLoading) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(3px)" }}>
           <div className="bg-card rounded-2xl p-8 text-center space-y-4 shadow-lg">
             <div className="flex justify-center">
               <svg className="animate-spin" viewBox="0 0 24 24" width={40} height={40} fill="none" stroke="var(--t1)" strokeWidth={2} strokeLinecap="round">
-                <circle cx={12} cy={12} r={10} stroke="var(--bd)" strokeWidth={2} fill="none" />
+                <circle cx="12" cy="12" r="10" stroke="var(--bd)" strokeWidth={2} fill="none" />
                 <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth={2} />
               </svg>
             </div>
             <p className="text-base font-semibold text-t1">登入中，請稍候…</p>
-            <p className="text-xs text-t3">正在驗證身分</p>
+            <p className="text-xs text-t3">{googleLoading ? "正在透過 Google 驗證" : "正在驗證身分"}</p>
           </div>
         </div>
       )}

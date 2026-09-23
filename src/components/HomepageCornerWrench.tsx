@@ -22,7 +22,7 @@ type WrenchProjectile = {
   resolved: boolean;
 };
 
-type GameRuntime = {
+type RuntimeState = {
   running: boolean;
   width: number;
   height: number;
@@ -36,39 +36,39 @@ type GameRuntime = {
 };
 
 const CONFIG = {
-  // 可調參數區：每局起始扳手數量
+  // 可調參數區：每回合起始扳手數量
   startingWrenches: 5,
   // 可調參數區：螺帽基礎掉落速度（像素/秒）
-  nutBaseFallSpeed: 88,
-  // 可調參數區：螺帽隨時間增加的掉落速度（像素/秒）
-  nutTimeRampSpeed: 18,
-  // 可調參數區：螺帽隨分數增加的掉落速度（像素/秒）
+  nutBaseFallSpeed: 94,
+  // 可調參數區：螺帽隨時間增加掉落速度（像素/秒）
+  nutTimeRampSpeed: 16,
+  // 可調參數區：螺帽隨分數增加掉落速度（像素/秒）
   nutScoreRampSpeed: 4,
   // 可調參數區：螺帽生成基礎間隔（秒）
-  nutSpawnBaseInterval: 1.02,
+  nutSpawnBaseInterval: 1,
   // 可調參數區：螺帽最小生成間隔（秒）
-  nutSpawnMinInterval: 0.28,
+  nutSpawnMinInterval: 0.3,
   // 可調參數區：螺帽生成隨時間加速係數（秒）
-  nutSpawnTimeRamp: 0.03,
+  nutSpawnTimeRamp: 0.028,
   // 可調參數區：螺帽生成隨分數加速係數（秒）
-  nutSpawnScoreRamp: 0.012,
+  nutSpawnScoreRamp: 0.011,
   // 可調參數區：螺帽像素尺寸
-  nutSize: 26,
+  nutSize: 24,
   // 可調參數區：扳手上下移動速度（像素/秒）
-  wrenchMoveSpeed: 280,
-  // 可調參數區：發射扳手水平飛行速度（像素/秒）
-  projectileSpeed: 480,
+  wrenchMoveSpeed: 290,
+  // 可調參數區：扳手飛行速度（像素/秒）
+  projectileSpeed: 490,
   // 可調參數區：扳手旋轉速度（弧度/秒）
-  projectileSpinSpeed: 8.2,
+  projectileSpinSpeed: 8.4,
   // 可調參數區：右側扳手活動區寬度比例
   wrenchZoneRatio: 0.2,
   // 可調參數區：左側螺帽掉落區寬度比例
   nutZoneRatio: 0.25,
-  // 可調參數區：連擊字樣持續時間（毫秒）
-  comboBannerMs: 950,
+  // 可調參數區：連擊字樣顯示時間（毫秒）
+  comboBannerMs: 900,
 };
 
-function createRuntime(width: number, height: number): GameRuntime {
+function createRuntime(width: number, height: number): RuntimeState {
   return {
     running: true,
     width,
@@ -83,7 +83,7 @@ function createRuntime(width: number, height: number): GameRuntime {
       active: false,
       x: 0,
       y: 0,
-      width: 66,
+      width: 68,
       height: 30,
       speed: CONFIG.projectileSpeed,
       angle: 0,
@@ -101,95 +101,96 @@ function getComboLabel(hits: number): string {
   return `${hits}X KILL`;
 }
 
-function drawPixelNut(ctx: CanvasRenderingContext2D, nut: FallingNut) {
-  const size = Math.round(nut.size);
-  const x = Math.round(nut.x);
-  const y = Math.round(nut.y);
-  const hole = Math.max(6, Math.round(size * 0.36));
-
-  ctx.fillStyle = "#a8a9b1";
-  ctx.fillRect(x, y + Math.round(size * 0.2), size, Math.round(size * 0.6));
-  ctx.fillRect(x + Math.round(size * 0.2), y, Math.round(size * 0.6), size);
-  ctx.fillRect(x + Math.round(size * 0.1), y + Math.round(size * 0.1), Math.round(size * 0.8), Math.round(size * 0.8));
-
-  ctx.fillStyle = "#3f4356";
-  ctx.fillRect(x + Math.round((size - hole) / 2), y + Math.round((size - hole) / 2), hole, hole);
-
-  ctx.fillStyle = "#d7d9e5";
-  ctx.fillRect(x + 3, y + 3, Math.round(size * 0.2), 3);
-}
-
-function drawWrenchShape(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
-  const px = Math.round(x);
-  const py = Math.round(y);
-  const w = Math.round(width);
-  const h = Math.round(height);
-  const handleW = Math.round(w * 0.6);
-  const headW = w - handleW;
-  const bodyTop = py + Math.round(h * 0.2);
-  const bodyH = Math.round(h * 0.6);
-
-  ctx.fillStyle = "#9199ad";
-  ctx.fillRect(px + headW, bodyTop, handleW, bodyH);
-  ctx.fillStyle = "#d4d9eb";
-  ctx.fillRect(px + headW + 2, bodyTop + 2, Math.max(2, handleW - 8), 3);
-
-  ctx.fillStyle = "#9ea5bc";
-  ctx.fillRect(px + 2, py + Math.round(h * 0.2), headW, Math.round(h * 0.6));
-  ctx.fillRect(px, py + Math.round(h * 0.36), headW + 6, Math.round(h * 0.28));
-
-  ctx.fillStyle = "#111625";
-  ctx.fillRect(px + 2, py + Math.round(h * 0.42), Math.round(headW * 0.36), Math.round(h * 0.16));
-  ctx.fillRect(px + Math.round(headW * 0.5), py + Math.round(h * 0.42), Math.round(headW * 0.36), Math.round(h * 0.16));
-
-  const holeSize = Math.round(h * 0.26);
-  ctx.fillStyle = "#27324a";
-  ctx.fillRect(px + w - holeSize - 6, py + Math.round((h - holeSize) / 2), holeSize, holeSize);
-}
-
 function intersects(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 }
 
-export default function HomepageEasterEgg() {
+function drawNut(ctx: CanvasRenderingContext2D, nut: FallingNut) {
+  const size = Math.round(nut.size);
+  const x = Math.round(nut.x);
+  const y = Math.round(nut.y);
+  const rim = Math.max(2, Math.floor(size * 0.12));
+  const hole = Math.max(6, Math.floor(size * 0.34));
+
+  ctx.fillStyle = "#111111";
+  ctx.fillRect(x, y + rim, size, size - rim * 2);
+  ctx.fillRect(x + rim, y, size - rim * 2, size);
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(x + rim * 2, y + rim * 2, size - rim * 4, size - rim * 4);
+
+  ctx.fillStyle = "#111111";
+  ctx.fillRect(x + Math.round((size - hole) / 2), y + Math.round((size - hole) / 2), hole, hole);
+}
+
+function drawWrench(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
+  const px = Math.round(x);
+  const py = Math.round(y);
+  const w = Math.round(width);
+  const h = Math.round(height);
+
+  const handleW = Math.round(w * 0.58);
+  const headW = w - handleW;
+  const bodyTop = py + Math.round(h * 0.2);
+  const bodyH = Math.round(h * 0.6);
+
+  ctx.fillStyle = "#111111";
+  ctx.fillRect(px + headW, bodyTop, handleW, bodyH);
+  ctx.fillRect(px, py + Math.round(h * 0.34), headW + 6, Math.round(h * 0.32));
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(px + headW + 2, bodyTop + 2, Math.max(2, handleW - 6), Math.max(2, bodyH - 4));
+
+  ctx.fillStyle = "#111111";
+  ctx.fillRect(px + headW + Math.round(handleW * 0.72), py + Math.round(h * 0.39), Math.round(h * 0.22), Math.round(h * 0.22));
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(px + 2, py + Math.round(h * 0.22), headW - 2, Math.round(h * 0.56));
+
+  ctx.fillStyle = "#111111";
+  ctx.fillRect(px + 2, py + Math.round(h * 0.42), Math.round(headW * 0.34), Math.round(h * 0.16));
+  ctx.fillRect(px + Math.round(headW * 0.52), py + Math.round(h * 0.42), Math.round(headW * 0.34), Math.round(h * 0.16));
+}
+
+export default function HomepageCornerWrench() {
   const [open, setOpen] = useState(false);
   const [score, setScore] = useState(0);
   const [wrenchesLeft, setWrenchesLeft] = useState(CONFIG.startingWrenches);
   const [comboLabel, setComboLabel] = useState("");
-  const [gameOver, setGameOver] = useState(false);
+  const [finished, setFinished] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef<number | null>(null);
   const comboTimerRef = useRef<number | null>(null);
   const scoreRef = useRef(0);
   const wrenchesRef = useRef(CONFIG.startingWrenches);
-  const runtimeRef = useRef<GameRuntime>(createRuntime(960, 540));
-  const prevTsRef = useRef<number>(0);
-  const bodyOverflowRef = useRef<string>("");
+  const runtimeRef = useRef<RuntimeState>(createRuntime(960, 540));
+  const prevTsRef = useRef(0);
+  const bodyOverflowRef = useRef("");
 
   const closeOverlay = useCallback(() => {
     setOpen(false);
   }, []);
 
-  const resetGame = useCallback(() => {
+  const resetRound = useCallback(() => {
     runtimeRef.current = createRuntime(960, 540);
     scoreRef.current = 0;
     wrenchesRef.current = CONFIG.startingWrenches;
     setScore(0);
     setWrenchesLeft(CONFIG.startingWrenches);
     setComboLabel("");
-    setGameOver(false);
+    setFinished(false);
     prevTsRef.current = 0;
   }, []);
 
-  const spawnNut = useCallback((runtime: GameRuntime) => {
+  const spawnNut = useCallback((runtime: RuntimeState) => {
     const size = CONFIG.nutSize;
     const maxX = Math.floor(runtime.width * CONFIG.nutZoneRatio) - size - 8;
     const minX = 8;
     const x = Math.max(minX, Math.floor(Math.random() * Math.max(1, maxX - minX + 1)) + minX);
     const rampByTime = (runtime.elapsedMs / 1000 / 30) * CONFIG.nutTimeRampSpeed;
     const rampByScore = scoreRef.current * CONFIG.nutScoreRampSpeed;
-    const speed = CONFIG.nutBaseFallSpeed + rampByTime + rampByScore + Math.random() * 38;
+    const speed = CONFIG.nutBaseFallSpeed + rampByTime + rampByScore + Math.random() * 36;
     runtime.nuts.push({ x, y: -size - 10, size, speed });
   }, []);
 
@@ -221,13 +222,13 @@ export default function HomepageEasterEgg() {
     setWrenchesLeft(wrenchesRef.current);
     if (wrenchesRef.current <= 0) {
       runtime.running = false;
-      setGameOver(true);
+      setFinished(true);
     }
   }, []);
 
   const fireProjectile = useCallback(() => {
     const runtime = runtimeRef.current;
-    if (!runtime.running || gameOver) return;
+    if (!runtime.running || finished) return;
     const projectile = runtime.projectile;
     if (projectile.active) return;
 
@@ -242,7 +243,7 @@ export default function HomepageEasterEgg() {
       hitsThisShot: 0,
       resolved: false,
     };
-  }, [gameOver]);
+  }, [finished]);
 
   const tick = useCallback((timestamp: number) => {
     const canvas = canvasRef.current;
@@ -251,7 +252,7 @@ export default function HomepageEasterEgg() {
     if (!ctx) return;
 
     const runtime = runtimeRef.current;
-    if (!runtime.running && !gameOver) return;
+    if (!runtime.running && !finished) return;
 
     if (prevTsRef.current === 0) {
       prevTsRef.current = timestamp;
@@ -300,9 +301,7 @@ export default function HomepageEasterEgg() {
       runtime.nuts = runtime.nuts.filter((nut) => {
         const nutBox = { x: nut.x, y: nut.y, w: nut.size, h: nut.size };
         const hit = intersects(projectileBox, nutBox);
-        if (hit) {
-          projectile.hitsThisShot += 1;
-        }
+        if (hit) projectile.hitsThisShot += 1;
         return !hit;
       });
 
@@ -313,17 +312,10 @@ export default function HomepageEasterEgg() {
     }
 
     ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = "#0a0e1a";
+    ctx.fillStyle = "#f9f9f9";
     ctx.fillRect(0, 0, runtime.width, runtime.height);
 
-    ctx.fillStyle = "#161d33";
-    ctx.fillRect(0, 0, Math.round(runtime.width * CONFIG.nutZoneRatio), runtime.height);
-    ctx.fillStyle = "#1d2740";
-    ctx.fillRect(Math.round(runtime.width * (1 - CONFIG.wrenchZoneRatio)), 0, Math.round(runtime.width * CONFIG.wrenchZoneRatio), runtime.height);
-
-    runtime.nuts.forEach((nut) => {
-      drawPixelNut(ctx, nut);
-    });
+    runtime.nuts.forEach((nut) => drawNut(ctx, nut));
 
     const playerWidth = 74;
     const playerHeight = 34;
@@ -331,24 +323,30 @@ export default function HomepageEasterEgg() {
     const playerY = runtime.playerY - playerHeight / 2;
 
     if (!projectile.active) {
-      drawWrenchShape(ctx, playerX, playerY, playerWidth, playerHeight);
+      drawWrench(ctx, playerX, playerY, playerWidth, playerHeight);
     } else {
       ctx.save();
       const cx = runtime.projectile.x + runtime.projectile.width / 2;
       const cy = runtime.projectile.y + runtime.projectile.height / 2;
       ctx.translate(Math.round(cx), Math.round(cy));
       ctx.rotate(runtime.projectile.angle);
-      drawWrenchShape(ctx, -runtime.projectile.width / 2, -runtime.projectile.height / 2, runtime.projectile.width, runtime.projectile.height);
+      drawWrench(
+        ctx,
+        -runtime.projectile.width / 2,
+        -runtime.projectile.height / 2,
+        runtime.projectile.width,
+        runtime.projectile.height
+      );
       ctx.restore();
     }
 
     frameRef.current = window.requestAnimationFrame(tick);
-  }, [gameOver, resolveShot, spawnNut]);
+  }, [finished, resolveShot, spawnNut]);
 
   useEffect(() => {
     if (!open) return;
 
-    resetGame();
+    resetRound();
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -404,26 +402,26 @@ export default function HomepageEasterEgg() {
       comboTimerRef.current = null;
       setComboLabel("");
     };
-  }, [closeOverlay, fireProjectile, open, resetGame, tick]);
+  }, [closeOverlay, fireProjectile, open, resetRound, tick]);
 
   return (
     <>
       <button
         type="button"
-        title="工具箱維修模式？"
+        title="維護工具"
         onClick={() => setOpen(true)}
-        className="fixed left-4 top-4 z-20 p-1.5 rounded-md border border-themed bg-card/90 hover:bg-surface transition-colors cursor-pointer"
-        aria-label="開啟隱藏扳手遊戲"
+        className="fixed left-4 top-4 z-20 p-1 rounded border border-themed bg-card/80 hover:bg-surface transition-colors cursor-pointer"
+        aria-label="開啟維護工具"
       >
         <svg viewBox="0 0 64 64" width={18} height={18} aria-hidden="true">
           <path
             d="M20 14l8 8-7 7 12 12 7-7 8 8-7 7c-3 3-7 3-10 0L17 34c-3-3-3-7 0-10z"
-            fill="#6d7489"
-            stroke="#202737"
+            fill="#353535"
+            stroke="#111111"
             strokeWidth="2.5"
           />
-          <circle cx="49" cy="15" r="7" fill="#8f98b1" stroke="#202737" strokeWidth="2.5" />
-          <circle cx="49" cy="15" r="2.2" fill="#1b2337" />
+          <circle cx="49" cy="15" r="7" fill="#444444" stroke="#111111" strokeWidth="2.5" />
+          <circle cx="49" cy="15" r="2.2" fill="#f9f9f9" />
         </svg>
       </button>
 
@@ -431,10 +429,10 @@ export default function HomepageEasterEgg() {
         <div className="fixed inset-0 z-[90] bg-black/90 flex items-center justify-center px-3 py-4">
           <button
             type="button"
-            title="關閉彩蛋（Esc）"
+            title="關閉（Esc）"
             onClick={closeOverlay}
             className="absolute right-4 top-4 text-white text-3xl leading-none cursor-pointer hover:text-gray-300"
-            aria-label="關閉遊戲"
+            aria-label="關閉視窗"
           >
             ×
           </button>
@@ -446,45 +444,43 @@ export default function HomepageEasterEgg() {
               height={540}
               tabIndex={0}
               onMouseDown={fireProjectile}
-              className="w-full h-auto max-h-[82vh] border border-slate-600 bg-black outline-none"
-              aria-label="扳手螺帽彩蛋遊戲"
+              className="w-full h-auto max-h-[82vh] border border-slate-500 bg-[#f9f9f9] outline-none"
+              aria-label="互動畫布"
             />
 
-            <div className="pointer-events-none absolute left-3 top-3 text-white font-mono text-sm sm:text-base">
+            <div className="pointer-events-none absolute left-3 top-3 text-black font-mono text-sm sm:text-base">
               <div>SCORE: {score}</div>
               <div>WRENCH: {wrenchesLeft}</div>
             </div>
 
-            {comboLabel && !gameOver && (
+            {comboLabel && !finished && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <div className="text-yellow-300 text-2xl sm:text-4xl font-bold tracking-wider drop-shadow-[0_0_12px_rgba(250,204,21,0.65)]">
-                  {comboLabel}
-                </div>
+                <div className="text-black text-2xl sm:text-4xl font-bold tracking-wider">{comboLabel}</div>
               </div>
             )}
 
-            {gameOver && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/70">
-                <div className="w-[88%] max-w-[420px] rounded-lg border border-slate-500 bg-slate-900/95 px-6 py-7 text-center text-white">
-                  <h2 className="text-2xl font-bold mb-2">GAME OVER</h2>
-                  <p className="text-base mb-6">最終分數：{score}</p>
+            {finished && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                <div className="w-[88%] max-w-[420px] rounded border border-black bg-white px-6 py-7 text-center text-black">
+                  <h2 className="text-2xl font-bold mb-2">ROUND OVER</h2>
+                  <p className="text-base mb-6">SCORE: {score}</p>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <button
                       type="button"
-                      onClick={resetGame}
-                      className="px-4 py-2 rounded border border-cyan-500 text-cyan-300 hover:bg-cyan-950/50 cursor-pointer"
+                      onClick={resetRound}
+                      className="px-4 py-2 rounded border border-black text-black hover:bg-slate-100 cursor-pointer"
                     >
-                      再玩一次
+                      再來一次
                     </button>
                     <button
                       type="button"
                       onClick={closeOverlay}
-                      className="px-4 py-2 rounded border border-slate-400 text-slate-200 hover:bg-slate-700/60 cursor-pointer"
+                      className="px-4 py-2 rounded border border-black text-black hover:bg-slate-100 cursor-pointer"
                     >
                       關閉
                     </button>
                   </div>
-                  <p className="text-xs text-slate-300 mt-5">操作：↑/↓ 移動，空白鍵或滑鼠按下發射，Esc 關閉</p>
+                  <p className="text-xs text-slate-700 mt-5">↑/↓ 移動，空白鍵或滑鼠發射，Esc 關閉</p>
                 </div>
               </div>
             )}

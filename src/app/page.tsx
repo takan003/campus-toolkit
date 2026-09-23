@@ -11,6 +11,34 @@ import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
 import HomepageCornerWrench from "@/components/HomepageCornerWrench";
 
+type ApiResponse = {
+  success?: boolean;
+  message?: string;
+  user?: {
+    uid?: string;
+    email?: string;
+    account?: string;
+    displayName?: string;
+    role?: string;
+  };
+};
+
+async function parseApiResponse(response: Response): Promise<ApiResponse | null> {
+  const raw = await response.text();
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw) as ApiResponse;
+  } catch (error) {
+    console.error("API JSON 解析失敗:", error);
+    return null;
+  }
+}
+
+function getErrorMessage(data: ApiResponse | null, fallback: string): string {
+  return typeof data?.message === "string" && data.message ? data.message : fallback;
+}
+
 export default function Home() {
   const router = useRouter();
   const [settings, setSettings] = useState<Settings>(defaultSettings);
@@ -73,11 +101,16 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ account, password, role }),
       });
+      const data = await parseApiResponse(res);
 
-      const data = await res.json();
+      if (!res.ok || !data?.success || !data.user) {
+        setError(getErrorMessage(data, `登入失敗（HTTP ${res.status}）`));
+        setLoading(false);
+        return;
+      }
 
-      if (!data.success) {
-        setError(data.message);
+      if (typeof data.user.uid !== "string" || !data.user.uid) {
+        setError("登入回應格式錯誤，請稍後再試");
         setLoading(false);
         return;
       }
@@ -126,11 +159,18 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken, role }),
       });
-      const data = await res.json();
+      const data = await parseApiResponse(res);
 
-      if (!data.success) {
+      if (!res.ok || !data?.success || !data.user) {
         await signOut(auth);
-        setError(data.message || "Google 登入失敗");
+        setError(getErrorMessage(data, `Google 登入失敗（HTTP ${res.status}）`));
+        setGoogleLoading(false);
+        return;
+      }
+
+      if (typeof data.user.uid !== "string" || !data.user.uid) {
+        await signOut(auth);
+        setError("Google 登入回應格式錯誤，請稍後再試");
         setGoogleLoading(false);
         return;
       }

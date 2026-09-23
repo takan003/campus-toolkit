@@ -197,11 +197,12 @@ function drawNut(ctx: CanvasRenderingContext2D, nut: FallingNut) {
   ctx.fill();
 }
 
-const WRENCH_SVG_PATH = new Path2D(
-  "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
-);
+const WRENCH_SVG_D =
+  "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z";
 
 function drawWrench(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
+  if (typeof Path2D === "undefined") return;
+  const path = new Path2D(WRENCH_SVG_D);
   const scale = Math.min(width / 24, height / 24);
 
   ctx.save();
@@ -214,8 +215,8 @@ function drawWrench(ctx: CanvasRenderingContext2D, x: number, y: number, width: 
   ctx.lineWidth = 2;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
-  ctx.fill(WRENCH_SVG_PATH);
-  ctx.stroke(WRENCH_SVG_PATH);
+  ctx.fill(path);
+  ctx.stroke(path);
   ctx.restore();
 }
 

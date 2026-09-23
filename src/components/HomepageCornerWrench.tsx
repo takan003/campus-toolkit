@@ -66,7 +66,66 @@ const CONFIG = {
   nutZoneRatio: 0.25,
   // 可調參數區：連擊字樣顯示時間（毫秒）
   comboBannerMs: 900,
+  // 可調參數區：最高分 localStorage 鍵名
+  bestScoreKey: "campus-toolkit-wrench-best-score",
 };
+
+function loadBestScore(): number | null {
+  try {
+    const raw = window.localStorage.getItem(CONFIG.bestScoreKey);
+    if (raw === null) return null;
+    const value = Number.parseInt(raw, 10);
+    return Number.isFinite(value) && value >= 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveBestScore(value: number): void {
+  try {
+    window.localStorage.setItem(CONFIG.bestScoreKey, String(value));
+  } catch {
+    // 忽略寫入失敗
+  }
+}
+
+function createMetalHitContext(): AudioContext | null {
+  try {
+    const Ctor = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    return new Ctor();
+  } catch {
+    return null;
+  }
+}
+
+function playMetalHit(audioCtx: AudioContext | null): void {
+  if (!audioCtx) return;
+  if (audioCtx.state === "suspended") {
+    void audioCtx.resume();
+  }
+
+  const now = audioCtx.currentTime;
+  const master = audioCtx.createGain();
+  master.gain.setValueAtTime(0.22, now);
+  master.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+  master.connect(audioCtx.destination);
+
+  const partials = [1850, 2680, 3410];
+  partials.forEach((freq, index) => {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = index === 0 ? "triangle" : "sine";
+    osc.frequency.setValueAtTime(freq, now);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.72, now + 0.14);
+    gain.gain.setValueAtTime(0.55 / (index + 1), now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14 - index * 0.02);
+    osc.connect(gain);
+    gain.connect(master);
+    osc.start(now);
+    osc.stop(now + 0.16);
+  });
+}
 
 function createRuntime(width: number, height: number): RuntimeState {
   return {
@@ -124,32 +183,57 @@ function drawNut(ctx: CanvasRenderingContext2D, nut: FallingNut) {
 }
 
 function drawWrench(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
-  const px = Math.round(x);
-  const py = Math.round(y);
-  const w = Math.round(width);
-  const h = Math.round(height);
+  const w = width;
+  const h = height;
+  const cx = x + w / 2;
+  const cy = y + h / 2;
 
-  const handleW = Math.round(w * 0.58);
-  const headW = w - handleW;
-  const bodyTop = py + Math.round(h * 0.2);
-  const bodyH = Math.round(h * 0.6);
+  ctx.save();
+  ctx.translate(cx, cy);
 
-  ctx.fillStyle = "#111111";
-  ctx.fillRect(px + headW, bodyTop, handleW, bodyH);
-  ctx.fillRect(px, py + Math.round(h * 0.34), headW + 6, Math.round(h * 0.32));
-
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(px + headW + 2, bodyTop + 2, Math.max(2, handleW - 6), Math.max(2, bodyH - 4));
+  const headSize = h;
+  const jawGap = h * 0.38;
+  const jawDepth = h * 0.46;
+  const handleLen = w - headSize * 0.5;
 
   ctx.fillStyle = "#111111";
-  ctx.fillRect(px + headW + Math.round(handleW * 0.72), py + Math.round(h * 0.39), Math.round(h * 0.22), Math.round(h * 0.22));
+  ctx.strokeStyle = "#111111";
+  ctx.lineWidth = Math.max(2, h * 0.1);
+  ctx.lineJoin = "round";
+  ctx.lineCap = "round";
 
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(px + 2, py + Math.round(h * 0.22), headW - 2, Math.round(h * 0.56));
+  ctx.beginPath();
+  ctx.roundRect(-handleLen / 2 + headSize * 0.2, -h * 0.22, handleLen, h * 0.44, h * 0.18);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(-handleLen / 2 + headSize * 0.2, 0, headSize * 0.46, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "#f9f9f9";
+  ctx.beginPath();
+  ctx.arc(-handleLen / 2 + headSize * 0.2, 0, headSize * 0.2, 0, Math.PI * 2);
+  ctx.fill();
 
   ctx.fillStyle = "#111111";
-  ctx.fillRect(px + 2, py + Math.round(h * 0.42), Math.round(headW * 0.34), Math.round(h * 0.16));
-  ctx.fillRect(px + Math.round(headW * 0.52), py + Math.round(h * 0.42), Math.round(headW * 0.34), Math.round(h * 0.16));
+  ctx.beginPath();
+  ctx.moveTo(-handleLen / 2 - headSize * 0.1, -jawGap / 2);
+  ctx.lineTo(-handleLen / 2 - jawDepth, -h * 0.42);
+  ctx.lineTo(-handleLen / 2 - jawDepth, -jawGap / 2 - h * 0.06);
+  ctx.lineTo(-handleLen / 2 - jawDepth * 0.35, -jawGap / 2);
+  ctx.lineTo(-handleLen / 2 + headSize * 0.15, -jawGap / 2);
+  ctx.lineTo(-handleLen / 2 + headSize * 0.15, jawGap / 2);
+  ctx.lineTo(-handleLen / 2 - jawDepth * 0.35, jawGap / 2);
+  ctx.lineTo(-handleLen / 2 - jawDepth, jawGap / 2 + h * 0.06);
+  ctx.lineTo(-handleLen / 2 - jawDepth, h * 0.42);
+  ctx.lineTo(-handleLen / 2 - headSize * 0.1, jawGap / 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.restore();
 }
 
 export default function HomepageCornerWrench() {
@@ -158,6 +242,7 @@ export default function HomepageCornerWrench() {
   const [wrenchesLeft, setWrenchesLeft] = useState(CONFIG.startingWrenches);
   const [comboLabel, setComboLabel] = useState("");
   const [finished, setFinished] = useState(false);
+  const [bestScore, setBestScore] = useState<number | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef<number | null>(null);
@@ -167,9 +252,19 @@ export default function HomepageCornerWrench() {
   const runtimeRef = useRef<RuntimeState>(createRuntime(960, 540));
   const prevTsRef = useRef(0);
   const bodyOverflowRef = useRef("");
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const bestScoreRef = useRef<number | null>(null);
 
   const closeOverlay = useCallback(() => {
     setOpen(false);
+  }, []);
+
+  const commitBestScore = useCallback((currentScore: number) => {
+    const previousBest = bestScoreRef.current;
+    if (previousBest !== null && currentScore <= previousBest) return;
+    bestScoreRef.current = currentScore;
+    setBestScore(currentScore);
+    saveBestScore(currentScore);
   }, []);
 
   const resetRound = useCallback(() => {
@@ -205,6 +300,7 @@ export default function HomepageCornerWrench() {
       const gained = hits * hits;
       scoreRef.current += gained;
       setScore(scoreRef.current);
+      commitBestScore(scoreRef.current);
       const label = getComboLabel(hits);
       if (label) {
         setComboLabel(label);
@@ -222,9 +318,10 @@ export default function HomepageCornerWrench() {
     setWrenchesLeft(wrenchesRef.current);
     if (wrenchesRef.current <= 0) {
       runtime.running = false;
+      commitBestScore(scoreRef.current);
       setFinished(true);
     }
-  }, []);
+  }, [commitBestScore]);
 
   const fireProjectile = useCallback(() => {
     const runtime = runtimeRef.current;
@@ -301,7 +398,10 @@ export default function HomepageCornerWrench() {
       runtime.nuts = runtime.nuts.filter((nut) => {
         const nutBox = { x: nut.x, y: nut.y, w: nut.size, h: nut.size };
         const hit = intersects(projectileBox, nutBox);
-        if (hit) projectile.hitsThisShot += 1;
+        if (hit) {
+          projectile.hitsThisShot += 1;
+          playMetalHit(audioCtxRef.current);
+        }
         return !hit;
       });
 
@@ -347,6 +447,10 @@ export default function HomepageCornerWrench() {
     if (!open) return;
 
     resetRound();
+    const storedBest = loadBestScore();
+    bestScoreRef.current = storedBest;
+    setBestScore(storedBest);
+    audioCtxRef.current = createMetalHitContext();
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -401,6 +505,10 @@ export default function HomepageCornerWrench() {
       }
       comboTimerRef.current = null;
       setComboLabel("");
+      if (audioCtxRef.current) {
+        void audioCtxRef.current.close();
+        audioCtxRef.current = null;
+      }
     };
   }, [closeOverlay, fireProjectile, open, resetRound, tick]);
 
@@ -413,15 +521,18 @@ export default function HomepageCornerWrench() {
         className="fixed left-4 top-4 z-20 p-1 rounded border border-themed bg-card/80 hover:bg-surface transition-colors cursor-pointer"
         aria-label="開啟維護工具"
       >
-        <svg viewBox="0 0 64 64" width={18} height={18} aria-hidden="true">
-          <path
-            d="M20 14l8 8-7 7 12 12 7-7 8 8-7 7c-3 3-7 3-10 0L17 34c-3-3-3-7 0-10z"
-            fill="#353535"
-            stroke="#111111"
-            strokeWidth="2.5"
-          />
-          <circle cx="49" cy="15" r="7" fill="#444444" stroke="#111111" strokeWidth="2.5" />
-          <circle cx="49" cy="15" r="2.2" fill="#f9f9f9" />
+        <svg
+          viewBox="0 0 24 24"
+          width={18}
+          height={18}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
         </svg>
       </button>
 
@@ -449,8 +560,9 @@ export default function HomepageCornerWrench() {
             />
 
             <div className="pointer-events-none absolute left-3 top-3 text-black font-mono text-sm sm:text-base">
-              <div>SCORE: {score}</div>
-              <div>WRENCH: {wrenchesLeft}</div>
+              <div>分數: {score}</div>
+              <div>板手數: {wrenchesLeft}</div>
+              {bestScore !== null && <div>最高分: {bestScore}</div>}
             </div>
 
             {comboLabel && !finished && (
@@ -462,8 +574,9 @@ export default function HomepageCornerWrench() {
             {finished && (
               <div className="absolute inset-0 flex items-center justify-center bg-white/80">
                 <div className="w-[88%] max-w-[420px] rounded border border-black bg-white px-6 py-7 text-center text-black">
-                  <h2 className="text-2xl font-bold mb-2">ROUND OVER</h2>
-                  <p className="text-base mb-6">SCORE: {score}</p>
+                  <h2 className="text-2xl font-bold mb-2">本局結束</h2>
+                  <p className="text-base mb-2">分數: {score}</p>
+                  <p className="text-base mb-6">最高分: {bestScore ?? score}</p>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <button
                       type="button"

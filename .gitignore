@@ -27,6 +27,8 @@ dev-server.log
 # local env files
 .env*.local
 .env
+vercel-firebase-key.txt
+vercel-firebase-key-oneline.json
 
 # vercel
 .vercel

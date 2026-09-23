@@ -142,9 +142,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, user });
   } catch (error) {
     console.error("Login error:", error);
-    return NextResponse.json({
-      success: false,
-      message: serverErrorMessage(error, "系統錯誤，請稍後再試"),
-    });
+    return NextResponse.json(
+      {
+        success: false,
+        message: serverErrorMessage(error, "系統錯誤，請稍後再試"),
+      },
+      { status: 500 }
+    );
   }
 }

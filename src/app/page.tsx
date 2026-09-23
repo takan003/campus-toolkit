@@ -142,6 +142,12 @@ export default function Home() {
     setGoogleLoading(true);
     setError("");
 
+    if (!auth) {
+      setError("Firebase API Key 未設定或無效，無法使用 Google 登入");
+      setGoogleLoading(false);
+      return;
+    }
+
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const email = result.user.email?.toLowerCase().trim();

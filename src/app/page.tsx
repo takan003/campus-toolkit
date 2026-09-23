@@ -40,6 +40,7 @@ function getErrorMessage(data: ApiResponse | null, fallback: string): string {
 }
 
 const GOOGLE_ROLE_STORAGE_KEY = "pendingGoogleRole";
+const GOOGLE_ERROR_STORAGE_KEY = "pendingGoogleError";
 
 function getPendingGoogleRole(): UserRole | null {
   if (typeof window === "undefined") return null;
@@ -55,6 +56,25 @@ function setPendingGoogleRole(role: UserRole): void {
 function clearPendingGoogleRole(): void {
   if (typeof window === "undefined") return;
   window.sessionStorage.removeItem(GOOGLE_ROLE_STORAGE_KEY);
+}
+
+function getPendingGoogleError(): string {
+  if (typeof window === "undefined") return "";
+  const message = window.sessionStorage.getItem(GOOGLE_ERROR_STORAGE_KEY) || "";
+  if (message) {
+    window.sessionStorage.removeItem(GOOGLE_ERROR_STORAGE_KEY);
+  }
+  return message;
+}
+
+function setPendingGoogleError(message: string): void {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(GOOGLE_ERROR_STORAGE_KEY, message);
+}
+
+function clearPendingGoogleError(): void {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(GOOGLE_ERROR_STORAGE_KEY);
 }
 
 export default function Home() {
@@ -73,12 +93,18 @@ export default function Home() {
     let cancelled = false;
     async function initPage() {
       try {
+        const persistedGoogleError = getPendingGoogleError();
+        if (persistedGoogleError) {
+          setError(persistedGoogleError);
+        }
+
         if (auth) {
           const redirectResult = await getRedirectResult(auth);
           if (cancelled) return;
 
           if (redirectResult?.user) {
             setGoogleLoading(true);
+            clearPendingGoogleError();
             setError("");
 
             const email = redirectResult.user.email?.toLowerCase().trim();
@@ -87,7 +113,9 @@ export default function Home() {
             if (!email) {
               await ensureSignedOut();
               if (cancelled) return;
-              setError("無法取得 Google 帳號資訊");
+              const errorMessage = "無法取得 Google 帳號資訊";
+              setPendingGoogleError(errorMessage);
+              setError(errorMessage);
               setGoogleLoading(false);
               clearPendingGoogleRole();
               return;
@@ -104,7 +132,9 @@ export default function Home() {
             if (!res.ok || !data?.success || !data.user) {
               await ensureSignedOut();
               if (cancelled) return;
-              setError(getErrorMessage(data, `Google 登入失敗（HTTP ${res.status}）`));
+              const errorMessage = getErrorMessage(data, `Google 登入失敗（HTTP ${res.status}）`);
+              setPendingGoogleError(errorMessage);
+              setError(errorMessage);
               setGoogleLoading(false);
               clearPendingGoogleRole();
               return;
@@ -113,7 +143,9 @@ export default function Home() {
             if (typeof data.user.uid !== "string" || !data.user.uid) {
               await ensureSignedOut();
               if (cancelled) return;
-              setError("Google 登入回應格式錯誤，請稍後再試");
+              const errorMessage = "Google 登入回應格式錯誤，請稍後再試";
+              setPendingGoogleError(errorMessage);
+              setError(errorMessage);
               setGoogleLoading(false);
               clearPendingGoogleRole();
               return;
@@ -129,6 +161,7 @@ export default function Home() {
             };
             setCachedSession(user);
             clearPendingGoogleRole();
+            clearPendingGoogleError();
             router.push(ROLE_HOME[user.role]);
             return;
           }
@@ -140,23 +173,26 @@ export default function Home() {
         const message = e?.message || String(err);
         clearPendingGoogleRole();
 
+        let errorMessage = "";
         if (code === "auth/unauthorized-domain") {
-          setError("此網域未在 Firebase 授權，請至 Console → Settings → Authorized domains 加入");
+          errorMessage = "此網域未在 Firebase 授權，請至 Console → Settings → Authorized domains 加入";
         } else if (code === "auth/operation-not-allowed") {
-          setError("Firebase 未啟用 Google 供應商，請至 Console → Authentication → Sign-in method 啟用");
+          errorMessage = "Firebase 未啟用 Google 供應商，請至 Console → Authentication → Sign-in method 啟用";
         } else if (code === "auth/invalid-api-key" || code === "auth/api-key-not-valid") {
-          setError("Firebase API Key 無效，請檢查 .env.local");
+          errorMessage = "Firebase API Key 無效，請檢查 .env.local";
         } else if (code === "auth/configuration-not-found") {
-          setError("Firebase 未找到 Google 登入設定，請確認供應商已啟用");
+          errorMessage = "Firebase 未找到 Google 登入設定，請確認供應商已啟用";
         } else if (code === "auth/network-request-failed") {
-          setError("網路錯誤，無法連線 Firebase");
+          errorMessage = "網路錯誤，無法連線 Firebase";
         } else if (code === "auth/account-exists-with-different-credential") {
-          setError("此 Email 已使用其他登入方式，請改用原本的登入方式");
+          errorMessage = "此 Email 已使用其他登入方式，請改用原本的登入方式";
         } else if (code) {
-          setError(`Google 登入失敗（${code}）`);
+          errorMessage = `Google 登入失敗（${code}）`;
         } else {
-          setError(`Google 登入失敗：${message}`);
+          errorMessage = `Google 登入失敗：${message}`;
         }
+        setPendingGoogleError(errorMessage);
+        setError(errorMessage);
       } finally {
         if (!cancelled) {
           setGoogleLoading(false);

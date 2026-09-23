@@ -39,6 +39,18 @@ function getErrorMessage(data: ApiResponse | null, fallback: string): string {
   return typeof data?.message === "string" && data.message ? data.message : fallback;
 }
 
+const LAST_GOOGLE_EMAIL_STORAGE_KEY = "lastGoogleLoginEmail";
+
+function getLastGoogleLoginEmail(): string {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(LAST_GOOGLE_EMAIL_STORAGE_KEY) || "";
+}
+
+function setLastGoogleLoginEmail(email: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LAST_GOOGLE_EMAIL_STORAGE_KEY, email);
+}
+
 export default function Home() {
   const router = useRouter();
   const [settings, setSettings] = useState<Settings>(defaultSettings);
@@ -171,7 +183,10 @@ export default function Home() {
       const isMobileBrowser = /Android|iPhone|iPad|iPod|Mobile/i.test(window.navigator.userAgent);
       const initialProvider = isMobileBrowser ? new GoogleAuthProvider() : googleProvider;
       if (isMobileBrowser) {
-        initialProvider.setCustomParameters({ prompt: "select_account" });
+        const hintEmail = getLastGoogleLoginEmail();
+        if (hintEmail) {
+          initialProvider.setCustomParameters({ login_hint: hintEmail });
+        }
       }
 
       let result;
@@ -231,8 +246,9 @@ export default function Home() {
         role: (data.user.role || role) as UserRole,
       };
       setCachedSession(user);
+      setLastGoogleLoginEmail(email);
 
-      router.push(ROLE_HOME[role]);
+      router.push(ROLE_HOME[user.role]);
     } catch (err: unknown) {
       console.error("Google login error:", err);
       const e = err as { code?: string; message?: string };

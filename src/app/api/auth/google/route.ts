@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "參數錯誤" }, { status: 400 });
     }
 
-    // 本機驗證 Firebase ID token（由前端 Firebase Google 登入流程取得），不打 identitytoolkit
+    // 本機驗證 Firebase ID token（signInWithPopup 產生），不打 identitytoolkit
     let email: string | undefined;
     try {
       const decoded = await getAdminAuth().verifyIdToken(String(idToken));

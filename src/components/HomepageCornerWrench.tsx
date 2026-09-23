@@ -39,13 +39,13 @@ const CONFIG = {
   // 可調參數區：每回合起始扳手數量
   startingWrenches: 5,
   // 可調參數區：螺帽基礎掉落速度（像素/秒）
-  nutBaseFallSpeed: 94,
+  nutBaseFallSpeed: 150,
   // 可調參數區：螺帽隨時間增加掉落速度（像素/秒）
   nutTimeRampSpeed: 16,
   // 可調參數區：螺帽隨分數增加掉落速度（像素/秒）
   nutScoreRampSpeed: 4,
   // 可調參數區：螺帽生成基礎間隔（秒）
-  nutSpawnBaseInterval: 1,
+  nutSpawnBaseInterval: 1.4,
   // 可調參數區：螺帽最小生成間隔（秒）
   nutSpawnMinInterval: 0.3,
   // 可調參數區：螺帽生成隨時間加速係數（秒）
@@ -573,17 +573,28 @@ export default function HomepageCornerWrench() {
 
       {open && (
         <div className="fixed inset-0 z-[90] bg-black/50 flex items-center justify-center px-3 py-4">
-          <button
-            type="button"
-            title="關閉（Esc）"
-            onClick={closeOverlay}
-            className="absolute right-4 top-4 text-white text-3xl leading-none cursor-pointer hover:text-gray-300"
-            aria-label="關閉視窗"
-          >
-            ×
-          </button>
-
           <div className="relative w-full max-w-[1020px] mx-auto">
+            <button
+              type="button"
+              title="關閉（Esc）"
+              onClick={closeOverlay}
+              className="absolute -right-3 -top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-slate-500 bg-white text-black shadow hover:bg-slate-100 cursor-pointer"
+              aria-label="關閉視窗"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width={16}
+                height={16}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </button>
             <canvas
               ref={canvasRef}
               width={960}

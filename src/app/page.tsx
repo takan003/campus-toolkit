@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { getRedirectResult, signInWithRedirect } from "firebase/auth";
 import { auth, googleProvider, ensureSignedOut } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import { UserRole, ROLE_HOME, ROLE_LABELS, isUserRole } from "@/types/users";
@@ -39,6 +39,24 @@ function getErrorMessage(data: ApiResponse | null, fallback: string): string {
   return typeof data?.message === "string" && data.message ? data.message : fallback;
 }
 
+const GOOGLE_ROLE_STORAGE_KEY = "pendingGoogleRole";
+
+function getPendingGoogleRole(): UserRole | null {
+  if (typeof window === "undefined") return null;
+  const value = window.sessionStorage.getItem(GOOGLE_ROLE_STORAGE_KEY);
+  return isUserRole(value) ? value : null;
+}
+
+function setPendingGoogleRole(role: UserRole): void {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(GOOGLE_ROLE_STORAGE_KEY, role);
+}
+
+function clearPendingGoogleRole(): void {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(GOOGLE_ROLE_STORAGE_KEY);
+}
+
 export default function Home() {
   const router = useRouter();
   const [settings, setSettings] = useState<Settings>(defaultSettings);
@@ -53,14 +71,107 @@ export default function Home() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchSession(true).then((session) => {
-      if (cancelled) return;
-      if (session && isUserRole(session.role)) {
-        router.push(ROLE_HOME[session.role]);
-        return;
+    async function initPage() {
+      try {
+        if (auth) {
+          const redirectResult = await getRedirectResult(auth);
+          if (cancelled) return;
+
+          if (redirectResult?.user) {
+            setGoogleLoading(true);
+            setError("");
+
+            const email = redirectResult.user.email?.toLowerCase().trim();
+            const loginRole = getPendingGoogleRole() ?? "student";
+
+            if (!email) {
+              await ensureSignedOut();
+              if (cancelled) return;
+              setError("無法取得 Google 帳號資訊");
+              setGoogleLoading(false);
+              clearPendingGoogleRole();
+              return;
+            }
+
+            const idToken = await redirectResult.user.getIdToken();
+            const res = await fetch("/api/auth/google", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ idToken, role: loginRole }),
+            });
+            const data = await parseApiResponse(res);
+
+            if (!res.ok || !data?.success || !data.user) {
+              await ensureSignedOut();
+              if (cancelled) return;
+              setError(getErrorMessage(data, `Google 登入失敗（HTTP ${res.status}）`));
+              setGoogleLoading(false);
+              clearPendingGoogleRole();
+              return;
+            }
+
+            if (typeof data.user.uid !== "string" || !data.user.uid) {
+              await ensureSignedOut();
+              if (cancelled) return;
+              setError("Google 登入回應格式錯誤，請稍後再試");
+              setGoogleLoading(false);
+              clearPendingGoogleRole();
+              return;
+            }
+
+            const userRole = isUserRole(data.user.role) ? data.user.role : loginRole;
+            const user: UserSession = {
+              uid: data.user.uid,
+              email: data.user.email || "",
+              account: data.user.account || "",
+              displayName: data.user.displayName || "",
+              role: userRole,
+            };
+            setCachedSession(user);
+            clearPendingGoogleRole();
+            router.push(ROLE_HOME[user.role]);
+            return;
+          }
+        }
+      } catch (err: unknown) {
+        console.error("Google redirect login error:", err);
+        const e = err as { code?: string; message?: string };
+        const code = e?.code || "";
+        const message = e?.message || String(err);
+        clearPendingGoogleRole();
+
+        if (code === "auth/unauthorized-domain") {
+          setError("此網域未在 Firebase 授權，請至 Console → Settings → Authorized domains 加入");
+        } else if (code === "auth/operation-not-allowed") {
+          setError("Firebase 未啟用 Google 供應商，請至 Console → Authentication → Sign-in method 啟用");
+        } else if (code === "auth/invalid-api-key" || code === "auth/api-key-not-valid") {
+          setError("Firebase API Key 無效，請檢查 .env.local");
+        } else if (code === "auth/configuration-not-found") {
+          setError("Firebase 未找到 Google 登入設定，請確認供應商已啟用");
+        } else if (code === "auth/network-request-failed") {
+          setError("網路錯誤，無法連線 Firebase");
+        } else if (code === "auth/account-exists-with-different-credential") {
+          setError("此 Email 已使用其他登入方式，請改用原本的登入方式");
+        } else if (code) {
+          setError(`Google 登入失敗（${code}）`);
+        } else {
+          setError(`Google 登入失敗：${message}`);
+        }
+      } finally {
+        if (!cancelled) {
+          setGoogleLoading(false);
+          const session = await fetchSession(true);
+          if (cancelled) return;
+          if (session && isUserRole(session.role)) {
+            router.push(ROLE_HOME[session.role]);
+            return;
+          }
+          setCheckingSession(false);
+        }
       }
-      setCheckingSession(false);
-    });
+    }
+
+    initPage();
     return () => {
       cancelled = true;
     };
@@ -148,92 +259,17 @@ export default function Home() {
       return;
     }
 
-    const originalOpen = window.open;
-    const openedWindows: Window[] = [];
-    window.open = ((...args: Parameters<typeof window.open>) => {
-      const win = originalOpen(...args);
-      if (win) openedWindows.push(win);
-      return win;
-    }) as typeof window.open;
-
-    const closeOpenedWindows = () => {
-      for (const win of openedWindows) {
-        try {
-          if (!win.closed) win.close();
-        } catch {
-          // 忽略跨來源無法關閉的視窗
-        }
-      }
-      openedWindows.length = 0;
-    };
-
     try {
-      let result;
-      try {
-        result = await signInWithPopup(auth, googleProvider);
-      } catch (err: unknown) {
-        const e = err as { code?: string };
-        if (e?.code === "auth/popup-failed-user-cancelled-login-flow") {
-          const retryProvider = new GoogleAuthProvider();
-          retryProvider.setCustomParameters({ prompt: "select_account" });
-          result = await signInWithPopup(auth, retryProvider);
-        } else {
-          throw err;
-        }
-      }
-      closeOpenedWindows();
-      const email = result.user.email?.toLowerCase().trim();
-
-      if (!email) {
-        await ensureSignedOut();
-        setError("無法取得 Google 帳號資訊");
-        setGoogleLoading(false);
-        return;
-      }
-
-      const idToken = await result.user.getIdToken();
-      const res = await fetch("/api/auth/google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken, role }),
-      });
-      const data = await parseApiResponse(res);
-
-      if (!res.ok || !data?.success || !data.user) {
-        await ensureSignedOut();
-        setError(getErrorMessage(data, `Google 登入失敗（HTTP ${res.status}）`));
-        setGoogleLoading(false);
-        return;
-      }
-
-      if (typeof data.user.uid !== "string" || !data.user.uid) {
-        await ensureSignedOut();
-        setError("Google 登入回應格式錯誤，請稍後再試");
-        setGoogleLoading(false);
-        return;
-      }
-
-      const user: UserSession = {
-        uid: data.user.uid,
-        email: data.user.email || "",
-        account: data.user.account || "",
-        displayName: data.user.displayName || "",
-        role: (data.user.role || role) as UserRole,
-      };
-      setCachedSession(user);
-
-      router.push(ROLE_HOME[role]);
+      setPendingGoogleRole(role);
+      await signInWithRedirect(auth, googleProvider);
     } catch (err: unknown) {
       console.error("Google login error:", err);
       const e = err as { code?: string; message?: string };
       const code = e?.code || "";
       const message = e?.message || String(err);
+      clearPendingGoogleRole();
 
-      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-        setError("");
-      } else if (code === "auth/popup-blocked") {
-        setError("彈出視窗被瀏覽器封鎖，請允許後重試");
-      } else if (code === "auth/unauthorized-domain") {
+      if (code === "auth/unauthorized-domain") {
         setError("此網域未在 Firebase 授權，請至 Console → Settings → Authorized domains 加入");
       } else if (code === "auth/operation-not-allowed") {
         setError("Firebase 未啟用 Google 供應商，請至 Console → Authentication → Sign-in method 啟用");
@@ -243,15 +279,14 @@ export default function Home() {
         setError("Firebase 未找到 Google 登入設定，請確認供應商已啟用");
       } else if (code === "auth/network-request-failed") {
         setError("網路錯誤，無法連線 Firebase");
+      } else if (code === "auth/account-exists-with-different-credential") {
+        setError("此 Email 已使用其他登入方式，請改用原本的登入方式");
       } else if (code) {
         setError(`Google 登入失敗（${code}）`);
       } else {
         setError(`Google 登入失敗：${message}`);
       }
       setGoogleLoading(false);
-    } finally {
-      closeOpenedWindows();
-      window.open = originalOpen;
     }
   }
 

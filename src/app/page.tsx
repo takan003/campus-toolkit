@@ -148,9 +148,29 @@ export default function Home() {
       return;
     }
 
+    const originalOpen = window.open;
+    const openedWindows: Window[] = [];
+    window.open = ((...args: Parameters<typeof window.open>) => {
+      const win = originalOpen(...args);
+      if (win) openedWindows.push(win);
+      return win;
+    }) as typeof window.open;
+
+    const closeOpenedWindows = () => {
+      for (const win of openedWindows) {
+        try {
+          if (!win.closed) win.close();
+        } catch {
+          // 忽略跨來源無法關閉的視窗
+        }
+      }
+      openedWindows.length = 0;
+    };
+
     try {
       await ensureSignedOut();
       const result = await signInWithPopup(auth, googleProvider);
+      closeOpenedWindows();
       const email = result.user.email?.toLowerCase().trim();
 
       if (!email) {
@@ -218,6 +238,9 @@ export default function Home() {
         setError(`Google 登入失敗：${message}`);
       }
       setGoogleLoading(false);
+    } finally {
+      closeOpenedWindows();
+      window.open = originalOpen;
     }
   }
 

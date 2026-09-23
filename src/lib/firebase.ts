@@ -25,7 +25,9 @@ function createAuth(): Auth | null {
 }
 
 export const auth = createAuth();
+
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
 
 export async function ensureSignedOut(): Promise<void> {
   if (!auth?.currentUser) return;

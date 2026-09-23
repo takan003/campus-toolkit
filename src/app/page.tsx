@@ -41,40 +41,64 @@ function getErrorMessage(data: ApiResponse | null, fallback: string): string {
 
 const GOOGLE_ROLE_STORAGE_KEY = "pendingGoogleRole";
 const GOOGLE_ERROR_STORAGE_KEY = "pendingGoogleError";
+const GOOGLE_REDIRECT_PENDING_KEY = "pendingGoogleRedirect";
+
+function readStorage(key: string): string {
+  if (typeof window === "undefined") return "";
+  return window.sessionStorage.getItem(key) || window.localStorage.getItem(key) || "";
+}
+
+function writeStorage(key: string, value: string): void {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(key, value);
+  window.localStorage.setItem(key, value);
+}
+
+function removeStorage(key: string): void {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(key);
+  window.localStorage.removeItem(key);
+}
 
 function getPendingGoogleRole(): UserRole | null {
-  if (typeof window === "undefined") return null;
-  const value = window.sessionStorage.getItem(GOOGLE_ROLE_STORAGE_KEY);
+  const value = readStorage(GOOGLE_ROLE_STORAGE_KEY);
   return isUserRole(value) ? value : null;
 }
 
 function setPendingGoogleRole(role: UserRole): void {
-  if (typeof window === "undefined") return;
-  window.sessionStorage.setItem(GOOGLE_ROLE_STORAGE_KEY, role);
+  writeStorage(GOOGLE_ROLE_STORAGE_KEY, role);
 }
 
 function clearPendingGoogleRole(): void {
-  if (typeof window === "undefined") return;
-  window.sessionStorage.removeItem(GOOGLE_ROLE_STORAGE_KEY);
+  removeStorage(GOOGLE_ROLE_STORAGE_KEY);
 }
 
 function getPendingGoogleError(): string {
-  if (typeof window === "undefined") return "";
-  const message = window.sessionStorage.getItem(GOOGLE_ERROR_STORAGE_KEY) || "";
+  const message = readStorage(GOOGLE_ERROR_STORAGE_KEY);
   if (message) {
-    window.sessionStorage.removeItem(GOOGLE_ERROR_STORAGE_KEY);
+    removeStorage(GOOGLE_ERROR_STORAGE_KEY);
   }
   return message;
 }
 
 function setPendingGoogleError(message: string): void {
-  if (typeof window === "undefined") return;
-  window.sessionStorage.setItem(GOOGLE_ERROR_STORAGE_KEY, message);
+  writeStorage(GOOGLE_ERROR_STORAGE_KEY, message);
 }
 
 function clearPendingGoogleError(): void {
-  if (typeof window === "undefined") return;
-  window.sessionStorage.removeItem(GOOGLE_ERROR_STORAGE_KEY);
+  removeStorage(GOOGLE_ERROR_STORAGE_KEY);
+}
+
+function isGoogleRedirectPending(): boolean {
+  return readStorage(GOOGLE_REDIRECT_PENDING_KEY) === "1";
+}
+
+function setGoogleRedirectPending(): void {
+  writeStorage(GOOGLE_REDIRECT_PENDING_KEY, "1");
+}
+
+function clearGoogleRedirectPending(): void {
+  removeStorage(GOOGLE_REDIRECT_PENDING_KEY);
 }
 
 export default function Home() {
@@ -103,8 +127,10 @@ export default function Home() {
           if (cancelled) return;
 
           const pendingRole = getPendingGoogleRole();
-          const loginRole = pendingRole ?? "student";
-          const firebaseUser = redirectResult?.user || (pendingRole ? auth.currentUser : null);
+          const redirectPending = isGoogleRedirectPending();
+          const loginRole = pendingRole ?? role;
+          const firebaseUser =
+            redirectResult?.user || (redirectPending || pendingRole ? auth.currentUser : null);
 
           if (firebaseUser) {
             setGoogleLoading(true);
@@ -165,12 +191,19 @@ export default function Home() {
             setCachedSession(user);
             clearPendingGoogleRole();
             clearPendingGoogleError();
+            clearGoogleRedirectPending();
             router.push(ROLE_HOME[user.role]);
             return;
           }
 
           if (pendingRole) {
             clearPendingGoogleRole();
+          }
+          if (redirectPending) {
+            const errorMessage = "Google 登入流程未完成，請再試一次";
+            setPendingGoogleError(errorMessage);
+            setError(errorMessage);
+            clearGoogleRedirectPending();
           }
         }
       } catch (err: unknown) {
@@ -179,6 +212,7 @@ export default function Home() {
         const code = e?.code || "";
         const message = e?.message || String(err);
         clearPendingGoogleRole();
+        clearGoogleRedirectPending();
 
         let errorMessage = "";
         if (code === "auth/unauthorized-domain") {
@@ -304,6 +338,7 @@ export default function Home() {
 
     try {
       setPendingGoogleRole(role);
+      setGoogleRedirectPending();
       await signInWithRedirect(auth, googleProvider);
     } catch (err: unknown) {
       console.error("Google login error:", err);
@@ -311,6 +346,7 @@ export default function Home() {
       const code = e?.code || "";
       const message = e?.message || String(err);
       clearPendingGoogleRole();
+      clearGoogleRedirectPending();
 
       if (code === "auth/unauthorized-domain") {
         setError("此網域未在 Firebase 授權，請至 Console → Settings → Authorized domains 加入");

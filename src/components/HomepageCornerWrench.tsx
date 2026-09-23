@@ -283,6 +283,7 @@ export default function HomepageCornerWrench() {
   const [comboLabel, setComboLabel] = useState("");
   const [finished, setFinished] = useState(false);
   const [bestScore, setBestScore] = useState<number | null>(null);
+  const [remoteBest, setRemoteBest] = useState<number | null>(null);
   const [showBoard, setShowBoard] = useState(false);
   const [boardRows, setBoardRows] = useState<LeaderboardRow[]>([]);
   const [boardMy, setBoardMy] = useState<LeaderboardMy | null>(null);
@@ -300,6 +301,7 @@ export default function HomepageCornerWrench() {
   const bodyOverflowRef = useRef("");
   const audioCtxRef = useRef<AudioContext | null>(null);
   const bestScoreRef = useRef<number | null>(null);
+  const remoteBestRef = useRef<number | null>(null);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const pointerDraggedRef = useRef(false);
   const finishedRef = useRef(false);
@@ -328,6 +330,18 @@ export default function HomepageCornerWrench() {
     if (next) void refreshLeaderboard();
   }, [refreshLeaderboard, showBoard]);
 
+  const syncRemoteBest = useCallback(async (currentScore: number): Promise<boolean> => {
+    const ok = await saveRemoteBestScore(currentScore);
+    if (ok) {
+      const prev = remoteBestRef.current;
+      if (prev === null || currentScore > prev) {
+        remoteBestRef.current = currentScore;
+        setRemoteBest(currentScore);
+      }
+    }
+    return ok;
+  }, []);
+
   const commitBestScore = useCallback((currentScore: number) => {
     const previousBest = bestScoreRef.current;
     const improved = previousBest === null || currentScore > previousBest;
@@ -342,8 +356,8 @@ export default function HomepageCornerWrench() {
     if (currentScore <= 0) return;
     if (syncedScoreRef.current !== null && currentScore <= syncedScoreRef.current) return;
     syncedScoreRef.current = currentScore;
-    void saveRemoteBestScore(currentScore);
-  }, []);
+    void syncRemoteBest(currentScore);
+  }, [syncRemoteBest]);
 
   const resetRound = useCallback(() => {
     runtimeRef.current = createRuntime(960, 540);
@@ -401,13 +415,6 @@ export default function HomepageCornerWrench() {
       commitBestScore(scoreRef.current);
       finishedRef.current = true;
       setFinished(true);
-      if (loggedInRef.current && sessionReadyRef.current && scoreRef.current > 0) {
-        const finalScore = scoreRef.current;
-        if (syncedScoreRef.current === null || finalScore > syncedScoreRef.current) {
-          syncedScoreRef.current = finalScore;
-          void saveRemoteBestScore(finalScore);
-        }
-      }
     }
   }, [commitBestScore]);
 
@@ -600,27 +607,28 @@ export default function HomepageCornerWrench() {
       setPlayerName(session ? session.displayName || session.account || "玩家" : "匿名");
       setPlayerRanked(loggedIn);
 
-      if (!session) return;
+      if (!session) {
+        setRemoteBest(null);
+        remoteBestRef.current = null;
+        return;
+      }
 
       const remote = await loadRemoteBestScore();
       if (cancelled) return;
 
-      const currentLocal = bestScoreRef.current;
+      // 榜上紀錄與本機最高分分開顯示，不互相合併
       if (remote !== null) {
-        // 顯示可取本機與雲端較高者，但 synced 只記雲端已有的分
-        const merged = Math.max(currentLocal ?? 0, remote);
-        bestScoreRef.current = merged;
-        setBestScore(merged);
+        remoteBestRef.current = remote;
+        setRemoteBest(remote);
         syncedScoreRef.current = remote;
       }
-      // 匿名時留下的 localStorage 分數：不上傳、不寫入 synced
 
       // 遊戲已結束但當時 session 未就緒 → 補送「本局」分數（不是 localStorage）
       if (finishedRef.current && scoreRef.current > 0) {
         const finalScore = scoreRef.current;
         if (syncedScoreRef.current === null || finalScore > syncedScoreRef.current) {
           syncedScoreRef.current = finalScore;
-          void saveRemoteBestScore(finalScore);
+          void syncRemoteBest(finalScore);
         }
       }
     })();
@@ -760,7 +768,13 @@ export default function HomepageCornerWrench() {
               </div>
               <div>分數: {score}</div>
               <div>板手數: {wrenchesLeft}</div>
-              {bestScore !== null && <div>最高分: {bestScore}</div>}
+              {bestScore !== null && <div>本機最高分: {bestScore}</div>}
+              {playerRanked && (
+                <div>榜上紀錄: {remoteBest !== null ? remoteBest : "—"}</div>
+              )}
+              {!playerRanked && bestScore !== null && (
+                <div className="text-[0.9em]">（本機紀錄，不上傳）</div>
+              )}
             </div>
 
             <button
@@ -833,7 +847,14 @@ export default function HomepageCornerWrench() {
                 <div className="w-[88%] max-w-[420px] rounded border border-black bg-white px-6 py-7 text-center text-black">
                   <h2 className="text-2xl font-bold mb-2">遊戲結束</h2>
                   <p className="text-base mb-2">分數: {score}</p>
-                  <p className="text-base mb-6">最高分: {bestScore ?? score}</p>
+                  <p className="text-base mb-1">本機最高分: {bestScore ?? score}</p>
+                  {playerRanked && (
+                    <p className="text-base mb-1">榜上紀錄: {remoteBest ?? "—"}</p>
+                  )}
+                  {!playerRanked && (
+                    <p className="text-sm text-t3 mb-4">（本機紀錄，不列入排行榜）</p>
+                  )}
+                  <p className="text-base mb-4 font-medium">再來一局？</p>
                   <p className="text-base mb-4 font-medium">再來一局？</p>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <button

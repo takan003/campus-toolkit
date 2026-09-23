@@ -166,20 +166,35 @@ function intersects(a: { x: number; y: number; w: number; h: number }, b: { x: n
 
 function drawNut(ctx: CanvasRenderingContext2D, nut: FallingNut) {
   const size = Math.round(nut.size);
-  const x = Math.round(nut.x);
-  const y = Math.round(nut.y);
-  const rim = Math.max(2, Math.floor(size * 0.12));
-  const hole = Math.max(6, Math.floor(size * 0.34));
+  const cx = Math.round(nut.x + size / 2);
+  const cy = Math.round(nut.y + size / 2);
+  const outer = size / 2;
+  const inner = outer * 0.7;
+  const hole = Math.max(4, Math.floor(size * 0.22));
+
+  const hexPath = (radius: number) => {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i += 1) {
+      const angle = (Math.PI / 3) * i - Math.PI / 2;
+      const px = cx + Math.cos(angle) * radius;
+      const py = cy + Math.sin(angle) * radius;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  };
 
   ctx.fillStyle = "#111111";
-  ctx.fillRect(x, y + rim, size, size - rim * 2);
-  ctx.fillRect(x + rim, y, size - rim * 2, size);
+  hexPath(outer);
+  ctx.fill();
 
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(x + rim * 2, y + rim * 2, size - rim * 4, size - rim * 4);
+  hexPath(inner);
+  ctx.fill();
 
   ctx.fillStyle = "#111111";
-  ctx.fillRect(x + Math.round((size - hole) / 2), y + Math.round((size - hole) / 2), hole, hole);
+  hexPath(hole);
+  ctx.fill();
 }
 
 function drawWrench(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
@@ -191,47 +206,31 @@ function drawWrench(ctx: CanvasRenderingContext2D, x: number, y: number, width: 
   ctx.save();
   ctx.translate(cx, cy);
 
-  const headSize = h;
-  const jawGap = h * 0.38;
-  const jawDepth = h * 0.46;
-  const handleLen = w - headSize * 0.5;
+  const headR = h * 0.5;
+  const headCx = -w / 2 + headR;
+  const jawHalf = 0.4;
+  const innerR = headR * 0.52;
+  const aUpper = Math.PI + jawHalf;
+  const aLower = Math.PI - jawHalf;
+  const handleH = h * 0.36;
 
   ctx.fillStyle = "#111111";
   ctx.strokeStyle = "#111111";
-  ctx.lineWidth = Math.max(2, h * 0.1);
+  ctx.lineWidth = Math.max(2, h * 0.08);
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
 
   ctx.beginPath();
-  ctx.roundRect(-handleLen / 2 + headSize * 0.2, -h * 0.22, handleLen, h * 0.44, h * 0.18);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(-handleLen / 2 + headSize * 0.2, 0, headSize * 0.46, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = "#f9f9f9";
-  ctx.beginPath();
-  ctx.arc(-handleLen / 2 + headSize * 0.2, 0, headSize * 0.2, 0, Math.PI * 2);
+  ctx.roundRect(headCx, -handleH / 2, w - headR * 0.6, handleH, handleH / 2);
   ctx.fill();
 
-  ctx.fillStyle = "#111111";
   ctx.beginPath();
-  ctx.moveTo(-handleLen / 2 - headSize * 0.1, -jawGap / 2);
-  ctx.lineTo(-handleLen / 2 - jawDepth, -h * 0.42);
-  ctx.lineTo(-handleLen / 2 - jawDepth, -jawGap / 2 - h * 0.06);
-  ctx.lineTo(-handleLen / 2 - jawDepth * 0.35, -jawGap / 2);
-  ctx.lineTo(-handleLen / 2 + headSize * 0.15, -jawGap / 2);
-  ctx.lineTo(-handleLen / 2 + headSize * 0.15, jawGap / 2);
-  ctx.lineTo(-handleLen / 2 - jawDepth * 0.35, jawGap / 2);
-  ctx.lineTo(-handleLen / 2 - jawDepth, jawGap / 2 + h * 0.06);
-  ctx.lineTo(-handleLen / 2 - jawDepth, h * 0.42);
-  ctx.lineTo(-handleLen / 2 - headSize * 0.1, jawGap / 2);
+  ctx.arc(headCx, 0, headR, aLower, aUpper, true);
+  ctx.lineTo(headCx + Math.cos(aUpper) * innerR, Math.sin(aUpper) * innerR);
+  ctx.arc(headCx, 0, innerR, aUpper, aLower, true);
+  ctx.lineTo(headCx + Math.cos(aLower) * headR, Math.sin(aLower) * headR);
   ctx.closePath();
   ctx.fill();
-  ctx.stroke();
 
   ctx.restore();
 }
@@ -254,6 +253,8 @@ export default function HomepageCornerWrench() {
   const bodyOverflowRef = useRef("");
   const audioCtxRef = useRef<AudioContext | null>(null);
   const bestScoreRef = useRef<number | null>(null);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const pointerDraggedRef = useRef(false);
 
   const closeOverlay = useCallback(() => {
     setOpen(false);
@@ -443,6 +444,55 @@ export default function HomepageCornerWrench() {
     frameRef.current = window.requestAnimationFrame(tick);
   }, [finished, resolveShot, spawnNut]);
 
+  const setPlayerYFromClientY = useCallback((clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.height === 0) return;
+    const scaleY = canvas.height / rect.height;
+    const y = (clientY - rect.top) * scaleY;
+    const runtime = runtimeRef.current;
+    runtime.playerY = Math.max(36, Math.min(runtime.height - 36, y));
+  }, []);
+
+  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (finished) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    pointerStartRef.current = { x: event.clientX, y: event.clientY };
+    pointerDraggedRef.current = false;
+    setPlayerYFromClientY(event.clientY);
+  }, [finished, setPlayerYFromClientY]);
+
+  const handlePointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (finished || !pointerStartRef.current) return;
+    const dx = event.clientX - pointerStartRef.current.x;
+    const dy = event.clientY - pointerStartRef.current.y;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+      pointerDraggedRef.current = true;
+    }
+    setPlayerYFromClientY(event.clientY);
+  }, [finished, setPlayerYFromClientY]);
+
+  const handlePointerUp = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    const wasDrag = pointerDraggedRef.current;
+    pointerStartRef.current = null;
+    pointerDraggedRef.current = false;
+    if (!wasDrag) {
+      fireProjectile();
+    }
+  }, [fireProjectile]);
+
+  const handlePointerCancel = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    pointerStartRef.current = null;
+    pointerDraggedRef.current = false;
+  }, []);
+
   useEffect(() => {
     if (!open) return;
 
@@ -554,8 +604,11 @@ export default function HomepageCornerWrench() {
               width={960}
               height={540}
               tabIndex={0}
-              onMouseDown={fireProjectile}
-              className="w-full h-auto max-h-[82vh] border border-slate-500 bg-[#f9f9f9] outline-none"
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerCancel}
+              className="w-full h-auto max-h-[82vh] border border-slate-500 bg-[#f9f9f9] outline-none touch-none cursor-crosshair"
               aria-label="互動畫布"
             />
 
@@ -593,7 +646,7 @@ export default function HomepageCornerWrench() {
                       關閉
                     </button>
                   </div>
-                  <p className="text-xs text-slate-700 mt-5">↑/↓ 移動，空白鍵或滑鼠發射，Esc 關閉</p>
+                  <p className="text-xs text-slate-700 mt-5">拖曳上下移動，點擊或空白鍵發射，Esc 關閉</p>
                 </div>
               </div>
             )}

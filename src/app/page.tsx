@@ -102,13 +102,16 @@ export default function Home() {
           const redirectResult = await getRedirectResult(auth);
           if (cancelled) return;
 
-          if (redirectResult?.user) {
+          const pendingRole = getPendingGoogleRole();
+          const loginRole = pendingRole ?? "student";
+          const firebaseUser = redirectResult?.user || (pendingRole ? auth.currentUser : null);
+
+          if (firebaseUser) {
             setGoogleLoading(true);
             clearPendingGoogleError();
             setError("");
 
-            const email = redirectResult.user.email?.toLowerCase().trim();
-            const loginRole = getPendingGoogleRole() ?? "student";
+            const email = firebaseUser.email?.toLowerCase().trim();
 
             if (!email) {
               await ensureSignedOut();
@@ -121,7 +124,7 @@ export default function Home() {
               return;
             }
 
-            const idToken = await redirectResult.user.getIdToken();
+            const idToken = await firebaseUser.getIdToken();
             const res = await fetch("/api/auth/google", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -164,6 +167,10 @@ export default function Home() {
             clearPendingGoogleError();
             router.push(ROLE_HOME[user.role]);
             return;
+          }
+
+          if (pendingRole) {
+            clearPendingGoogleRole();
           }
         }
       } catch (err: unknown) {

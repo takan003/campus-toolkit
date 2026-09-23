@@ -3,6 +3,7 @@ import { getAdminDb } from "@/lib/firebase-admin";
 import { verifySession } from "@/lib/dal";
 import { unauthorized } from "@/lib/server-session";
 import { ROLE_COLLECTIONS, ROLE_SPECIFIC_FIELDS, isUserRole } from "@/types/users";
+import { serverErrorMessage } from "@/lib/api-error";
 
 export interface MeProfile {
   name: string;
@@ -37,6 +38,9 @@ export async function GET() {
     return NextResponse.json({ success: true, profile });
   } catch (error) {
     console.error("Profile load error:", error);
-    return NextResponse.json({ success: false, message: "系統錯誤" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: serverErrorMessage(error, "系統錯誤") },
+      { status: 500 }
+    );
   }
 }

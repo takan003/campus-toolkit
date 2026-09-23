@@ -6,6 +6,7 @@ import { logActivity, getClientIp } from "@/lib/audit";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { assertSameOrigin } from "@/lib/csrf";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
+import { serverErrorMessage } from "@/lib/api-error";
 
 const LOCK_THRESHOLD = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
@@ -141,6 +142,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, user });
   } catch (error) {
     console.error("Login error:", error);
-    return NextResponse.json({ success: false, message: "系統錯誤，請稍後再試" });
+    return NextResponse.json({
+      success: false,
+      message: serverErrorMessage(error, "系統錯誤，請稍後再試"),
+    });
   }
 }

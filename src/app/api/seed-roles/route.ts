@@ -12,6 +12,7 @@ import {
   ParentRecord,
   StaffRecord,
 } from "@/types/users";
+import { serverErrorMessage } from "@/lib/api-error";
 
 function seedCredentials(): { email: string; account: string; password: string } | null {
   const email = process.env.SEED_EMAIL;
@@ -118,7 +119,10 @@ export async function seedRoles() {
     });
   } catch (error) {
     console.error("Seed roles error:", error);
-    return NextResponse.json({ success: false, message: "系統錯誤，請稍後再試" });
+    return NextResponse.json({
+      success: false,
+      message: serverErrorMessage(error, "系統錯誤，請稍後再試"),
+    });
   }
 }
 

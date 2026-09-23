@@ -5,6 +5,7 @@ import { logActivity, getClientIp } from "@/lib/audit";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { assertSameOrigin } from "@/lib/csrf";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
+import { serverErrorMessage } from "@/lib/api-error";
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,7 +24,10 @@ export async function POST(request: NextRequest) {
 
     const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ success: false, message: "系統錯誤" }, { status: 500 });
+      return NextResponse.json(
+        { success: false, message: "NEXT_PUBLIC_FIREBASE_API_KEY 未設定" },
+        { status: 500 }
+      );
     }
 
     const verifyRes = await fetch(
@@ -113,6 +117,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, user });
   } catch (error) {
     console.error("Google session error:", error);
-    return NextResponse.json({ success: false, message: "系統錯誤，請稍後再試" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: serverErrorMessage(error, "系統錯誤，請稍後再試") },
+      { status: 500 }
+    );
   }
 }

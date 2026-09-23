@@ -4,6 +4,7 @@ import { hashPassword } from "@/lib/auth";
 import { requireRole, toAuthResponse } from "@/lib/dal";
 import { assertSameOrigin } from "@/lib/csrf";
 import { clampCostFactor, normalizeEmail, normalizeAccount, isStrongPassword } from "@/lib/validation";
+import { serverErrorMessage } from "@/lib/api-error";
 
 async function requireAdmin() {
   const { session, denial } = await requireRole("admin");
@@ -35,7 +36,7 @@ export async function GET() {
     return NextResponse.json({ success: true, admins });
   } catch (error) {
     console.error("List admins error:", error);
-    return NextResponse.json({ success: false, message: "系統錯誤" });
+    return NextResponse.json({ success: false, message: serverErrorMessage(error, "系統錯誤") });
   }
 }
 
@@ -85,7 +86,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: true, message: "更新成功" });
   } catch (error) {
     console.error("Update admin error:", error);
-    return NextResponse.json({ success: false, message: "系統錯誤" });
+    return NextResponse.json({ success: false, message: serverErrorMessage(error, "系統錯誤") });
   }
 }
 
@@ -116,6 +117,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true, message: "刪除成功" });
   } catch (error) {
     console.error("Delete admin error:", error);
-    return NextResponse.json({ success: false, message: "系統錯誤" });
+    return NextResponse.json({ success: false, message: serverErrorMessage(error, "系統錯誤") });
   }
 }

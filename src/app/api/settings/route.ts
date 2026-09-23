@@ -5,6 +5,7 @@ import { assertSameOrigin } from "@/lib/csrf";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { getClientIp, logActivity } from "@/lib/audit";
 import { Settings, defaultSettings } from "@/types/settings";
+import { serverErrorMessage } from "@/lib/api-error";
 
 const SETTINGS_DOC = { collection: "settings", id: "system" };
 const MAX_SETTINGS = 200_000;
@@ -90,6 +91,9 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: true, settings, message: "設定已儲存" });
   } catch (error) {
     console.error("Settings PUT error:", error);
-    return NextResponse.json({ success: false, message: "系統錯誤" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: serverErrorMessage(error, "系統錯誤") },
+      { status: 500 }
+    );
   }
 }

@@ -6,6 +6,7 @@ import { logActivity, getClientIp } from "@/lib/audit";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { assertSameOrigin } from "@/lib/csrf";
 import { clampCostFactor, normalizeEmail, normalizeAccount, isStrongPassword } from "@/lib/validation";
+import { serverErrorMessage } from "@/lib/api-error";
 
 export async function POST(request: NextRequest) {
   try {
@@ -98,6 +99,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Create admin error:", error);
-    return NextResponse.json({ success: false, message: "系統錯誤，請稍後再試" });
+    return NextResponse.json({
+      success: false,
+      message: serverErrorMessage(error, "系統錯誤，請稍後再試"),
+    });
   }
 }

@@ -5,6 +5,7 @@ import { unauthorized } from "@/lib/server-session";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { assertSameOrigin } from "@/lib/csrf";
 import { ROLE_LABELS, UserRole } from "@/types/users";
+import { serverErrorMessage } from "@/lib/api-error";
 
 const COLLECTION = "wrenchLeaderboard";
 const TOP_N = 100;
@@ -72,8 +73,11 @@ export async function GET() {
     }
 
     return NextResponse.json({ success: true, top, my });
-  } catch {
-    return NextResponse.json({ success: false, message: "系統錯誤，請稍後再試" }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: serverErrorMessage(error, "系統錯誤，請稍後再試") },
+      { status: 500 }
+    );
   }
 }
 
@@ -161,7 +165,10 @@ export async function POST(request: NextRequest) {
       ranked: rank >= 0,
       rank: rank >= 0 ? rank + 1 : null,
     });
-  } catch {
-    return NextResponse.json({ success: false, message: "系統錯誤，請稍後再試" }, { status: 500 });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: serverErrorMessage(error, "系統錯誤，請稍後再試") },
+      { status: 500 }
+    );
   }
 }

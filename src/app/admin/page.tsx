@@ -7,6 +7,7 @@ import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
+import HomepageCornerWrench from "@/components/HomepageCornerWrench";
 import { fetchSession, logout, UserSession } from "@/lib/session";
 
 interface ModuleCard {
@@ -106,6 +107,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-page px-4 pt-[20px]">
+      <HomepageCornerWrench />
       {/* 標題區域 */}
       <div className="text-center mb-2">
         <h1 className="text-4xl font-bold mb-2">{settings.systemName || "數位校園工具箱"}</h1>

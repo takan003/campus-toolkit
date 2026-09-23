@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { fetchSession } from "@/lib/session";
 
 type FallingNut = {
   x: number;
@@ -86,6 +87,30 @@ function saveBestScore(value: number): void {
     window.localStorage.setItem(CONFIG.bestScoreKey, String(value));
   } catch {
     // 忽略寫入失敗
+  }
+}
+
+async function loadRemoteBestScore(): Promise<number | null> {
+  try {
+    const res = await fetch("/api/wrench-score", { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data?.success && typeof data.score === "number") return data.score;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function saveRemoteBestScore(score: number): Promise<void> {
+  try {
+    await fetch("/api/wrench-score", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ score }),
+    });
+  } catch {
+    // 忽略同步失敗
   }
 }
 
@@ -240,6 +265,7 @@ export default function HomepageCornerWrench() {
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const pointerDraggedRef = useRef(false);
   const finishedRef = useRef(false);
+  const loggedInRef = useRef(false);
 
   const closeOverlay = useCallback(() => {
     setOpen(false);
@@ -251,6 +277,9 @@ export default function HomepageCornerWrench() {
     bestScoreRef.current = currentScore;
     setBestScore(currentScore);
     saveBestScore(currentScore);
+    if (loggedInRef.current) {
+      void saveRemoteBestScore(currentScore);
+    }
   }, []);
 
   const resetRound = useCallback(() => {
@@ -485,12 +514,31 @@ export default function HomepageCornerWrench() {
     if (!open) return;
 
     resetRound();
-    const storedBest = loadBestScore();
-    bestScoreRef.current = storedBest;
-    setBestScore(storedBest);
+    const localBest = loadBestScore();
+    bestScoreRef.current = localBest;
+    setBestScore(localBest);
     audioCtxRef.current = createMetalHitContext();
+
+    let cancelled = false;
+    void (async () => {
+      const session = await fetchSession();
+      if (cancelled) return;
+      loggedInRef.current = Boolean(session);
+      if (!session) return;
+      const remote = await loadRemoteBestScore();
+      if (cancelled) return;
+      if (remote !== null) {
+        const merged = Math.max(localBest ?? 0, remote);
+        bestScoreRef.current = merged;
+        setBestScore(merged);
+        if ((localBest ?? 0) > remote) {
+          void saveRemoteBestScore(localBest ?? 0);
+        }
+      }
+    })();
+
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) return () => { cancelled = true; };
 
     bodyOverflowRef.current = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -527,6 +575,7 @@ export default function HomepageCornerWrench() {
     frameRef.current = window.requestAnimationFrame(tick);
 
     return () => {
+      cancelled = true;
       window.clearTimeout(focusCanvas);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
@@ -534,6 +583,7 @@ export default function HomepageCornerWrench() {
       runtimeRef.current.moveUp = false;
       runtimeRef.current.moveDown = false;
       runtimeRef.current.running = false;
+      loggedInRef.current = false;
       if (frameRef.current !== null) {
         window.cancelAnimationFrame(frameRef.current);
       }

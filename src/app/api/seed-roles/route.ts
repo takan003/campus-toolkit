@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { hashPassword } from "@/lib/auth";
 import { verifySession } from "@/lib/dal";
@@ -43,6 +43,7 @@ export async function seedRoles() {
       lockedUntil: 0,
       failedAttempts: 0,
       createdAt: now,
+      丟板手: 0,
     };
 
     const created: string[] = [];
@@ -98,12 +99,28 @@ export async function seedRoles() {
       success: true,
       created,
       skipped,
+      backfilled: await backfillWrenchScores(),
       message: `建立 ${created.length} 筆，略過 ${skipped.length} 筆`,
     });
   } catch (error) {
     console.error("Seed roles error:", error);
     return NextResponse.json({ success: false, message: "系統錯誤，請稍後再試" });
   }
+}
+
+async function backfillWrenchScores(): Promise<string[]> {
+  const results: string[] = [];
+  for (const col of Object.values(ROLE_COLLECTIONS)) {
+    const snap = await getDocs(collection(db, col));
+    for (const d of snap.docs) {
+      const data = d.data();
+      if (typeof data.丟板手 === "number") continue;
+      const score = 5 + Math.floor(Math.random() * 16);
+      await updateDoc(d.ref, { 丟板手: score });
+      results.push(`${col}: ${score}`);
+    }
+  }
+  return results;
 }
 
 export async function GET() {

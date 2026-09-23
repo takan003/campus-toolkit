@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
       lockedUntil: 0,
       tokenVersion: 1,
       createdAt: Date.now(),
+      丟板手: 0,
     };
 
     const docRef = await addDoc(adminsRef, newAdmin);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getRedirectResult, onAuthStateChanged, signInWithRedirect } from "firebase/auth";
+import { getRedirectResult, onAuthStateChanged, signInWithRedirect, User } from "firebase/auth";
 import { auth, googleProvider, ensureSignedOut } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import { UserRole, ROLE_HOME, ROLE_LABELS, isUserRole } from "@/types/users";
@@ -101,35 +101,37 @@ function clearGoogleRedirectPending(): void {
   removeStorage(GOOGLE_REDIRECT_PENDING_KEY);
 }
 
-async function waitForAuthReadyAfterRedirect(): Promise<void> {
+async function waitForAuthUserAfterRedirect(timeoutMs = 8000): Promise<User | null> {
   const firebaseAuth = auth;
-  if (!firebaseAuth) return;
+  if (!firebaseAuth) return null;
+  if (firebaseAuth.currentUser) return firebaseAuth.currentUser;
 
   const authWithReady = firebaseAuth as typeof firebaseAuth & {
     authStateReady?: () => Promise<void>;
   };
   if (typeof authWithReady.authStateReady === "function") {
     await authWithReady.authStateReady();
-    return;
+    return firebaseAuth.currentUser;
   }
 
-  await new Promise<void>((resolve) => {
+  return await new Promise<User | null>((resolve) => {
     const timer = window.setTimeout(() => {
       unsubscribe();
-      resolve();
-    }, 2000);
+      resolve(firebaseAuth.currentUser);
+    }, timeoutMs);
 
     const unsubscribe = onAuthStateChanged(
       firebaseAuth,
-      () => {
+      (user) => {
+        if (!user) return;
         window.clearTimeout(timer);
         unsubscribe();
-        resolve();
+        resolve(user);
       },
       () => {
         window.clearTimeout(timer);
         unsubscribe();
-        resolve();
+        resolve(firebaseAuth.currentUser);
       }
     );
   });
@@ -163,12 +165,15 @@ export default function Home() {
           const pendingRole = getPendingGoogleRole();
           const redirectPending = isGoogleRedirectPending();
           const loginRole = pendingRole ?? role;
-          if ((redirectPending || pendingRole) && !redirectResult?.user && !auth.currentUser) {
-            await waitForAuthReadyAfterRedirect();
+          let firebaseUser = redirectResult?.user || null;
+
+          if (!firebaseUser && (redirectPending || pendingRole)) {
+            firebaseUser = await waitForAuthUserAfterRedirect();
             if (cancelled) return;
           }
-          const firebaseUser =
-            redirectResult?.user || (redirectPending || pendingRole ? auth.currentUser : null);
+          if (!firebaseUser && (redirectPending || pendingRole)) {
+            firebaseUser = auth.currentUser;
+          }
 
           if (firebaseUser) {
             setGoogleLoading(true);
@@ -234,10 +239,11 @@ export default function Home() {
             return;
           }
 
-          if (pendingRole) {
+          if (redirectPending || pendingRole) {
+            const errorMessage = "Google 登入流程未完成，請再試一次";
+            setPendingGoogleError(errorMessage);
+            setError(errorMessage);
             clearPendingGoogleRole();
-          }
-          if (redirectPending) {
             clearGoogleRedirectPending();
           }
         }

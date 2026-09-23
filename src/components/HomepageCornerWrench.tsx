@@ -142,8 +142,8 @@ function createRuntime(width: number, height: number): RuntimeState {
       active: false,
       x: 0,
       y: 0,
-      width: 144,
-      height: 90,
+      width: 96,
+      height: 60,
       speed: CONFIG.projectileSpeed,
       angle: 0,
       spinSpeed: CONFIG.projectileSpinSpeed,
@@ -344,8 +344,8 @@ export default function HomepageCornerWrench() {
     const dt = deltaMs / 1000;
 
     runtime.elapsedMs += deltaMs;
-    const playerMinY = 50;
-    const playerMaxY = runtime.height - 50;
+    const playerMinY = 36;
+    const playerMaxY = runtime.height - 36;
 
     if (runtime.moveUp) runtime.playerY -= CONFIG.wrenchMoveSpeed * dt;
     if (runtime.moveDown) runtime.playerY += CONFIG.wrenchMoveSpeed * dt;
@@ -401,8 +401,8 @@ export default function HomepageCornerWrench() {
 
     runtime.nuts.forEach((nut) => drawNut(ctx, nut));
 
-    const playerWidth = 144;
-    const playerHeight = 90;
+    const playerWidth = 96;
+    const playerHeight = 60;
     const playerX = Math.floor(runtime.width * (1 - CONFIG.wrenchZoneRatio / 2)) - playerWidth / 2;
     const playerY = runtime.playerY - playerHeight / 2;
 
@@ -435,7 +435,7 @@ export default function HomepageCornerWrench() {
     const scaleY = canvas.height / rect.height;
     const y = (clientY - rect.top) * scaleY;
     const runtime = runtimeRef.current;
-    runtime.playerY = Math.max(50, Math.min(runtime.height - 50, y));
+    runtime.playerY = Math.max(36, Math.min(runtime.height - 36, y));
   }, []);
 
   const handlePointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {

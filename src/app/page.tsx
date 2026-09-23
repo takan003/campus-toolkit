@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithPopup } from "firebase/auth";
+import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth, googleProvider, ensureSignedOut } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import { UserRole, ROLE_HOME, ROLE_LABELS, isUserRole } from "@/types/users";
@@ -168,8 +168,19 @@ export default function Home() {
     };
 
     try {
-      await ensureSignedOut();
-      const result = await signInWithPopup(auth, googleProvider);
+      let result;
+      try {
+        result = await signInWithPopup(auth, googleProvider);
+      } catch (err: unknown) {
+        const e = err as { code?: string };
+        if (e?.code === "auth/popup-failed-user-cancelled-login-flow") {
+          const retryProvider = new GoogleAuthProvider();
+          retryProvider.setCustomParameters({ prompt: "select_account" });
+          result = await signInWithPopup(auth, retryProvider);
+        } else {
+          throw err;
+        }
+      }
       closeOpenedWindows();
       const email = result.user.email?.toLowerCase().trim();
 

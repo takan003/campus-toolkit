@@ -283,6 +283,8 @@ export default function HomepageCornerWrench() {
   const [boardRows, setBoardRows] = useState<LeaderboardRow[]>([]);
   const [boardMy, setBoardMy] = useState<LeaderboardMy | null>(null);
   const [boardLoading, setBoardLoading] = useState(false);
+  const [playerName, setPlayerName] = useState("匿名");
+  const [playerRanked, setPlayerRanked] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef<number | null>(null);
@@ -573,6 +575,8 @@ export default function HomepageCornerWrench() {
       const session = await fetchSession();
       if (cancelled) return;
       loggedInRef.current = Boolean(session);
+      setPlayerName(session ? session.displayName || session.account || "玩家" : "匿名");
+      setPlayerRanked(Boolean(session));
       if (!session) return;
       const remote = await loadRemoteBestScore();
       if (cancelled) return;
@@ -633,6 +637,8 @@ export default function HomepageCornerWrench() {
       runtimeRef.current.moveDown = false;
       runtimeRef.current.running = false;
       loggedInRef.current = false;
+      setPlayerName("匿名");
+      setPlayerRanked(false);
       if (frameRef.current !== null) {
         window.cancelAnimationFrame(frameRef.current);
       }
@@ -711,6 +717,10 @@ export default function HomepageCornerWrench() {
             />
 
             <div className="pointer-events-none absolute left-3 top-3 text-black font-mono text-sm sm:text-base">
+              <div>
+                玩家: {playerName}
+                {!playerRanked && "（不列入排行榜）"}
+              </div>
               <div>分數: {score}</div>
               <div>板手數: {wrenchesLeft}</div>
               {bestScore !== null && <div>最高分: {bestScore}</div>}

@@ -100,11 +100,13 @@ export async function POST(request: NextRequest) {
     const mineDoc = mineSnap.docs[0] ?? null;
     const currentScore = mineDoc ? Number(mineDoc.data().score) || 0 : 0;
 
+    // 同一 uid 只保留一筆：破紀錄才更新，進不了前 100 則不寫入
     if (mineDoc && newScore <= currentScore) {
       return NextResponse.json({
         success: true,
         score: currentScore,
         improved: false,
+        ranked: true,
       });
     }
 

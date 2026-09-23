@@ -40,7 +40,18 @@ export async function POST(request: NextRequest) {
     );
 
     if (!verifyRes.ok) {
-      return NextResponse.json({ success: false, message: "Google 驗證失敗" }, { status: 401 });
+      const errBody = await verifyRes.text().catch(() => "");
+      console.error("Google idToken verify failed:", verifyRes.status, errBody);
+      return NextResponse.json(
+        {
+          success: false,
+          message: serverErrorMessage(
+            new Error(`Google 驗證失敗（${verifyRes.status}）：${errBody.slice(0, 300)}`),
+            "Google 驗證失敗"
+          ),
+        },
+        { status: 401 }
+      );
     }
 
     const verified = (await verifyRes.json()) as { email?: string };

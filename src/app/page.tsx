@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getRedirectResult, signInWithRedirect } from "firebase/auth";
+import { getRedirectResult, onAuthStateChanged, signInWithRedirect } from "firebase/auth";
 import { auth, googleProvider, ensureSignedOut } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import { UserRole, ROLE_HOME, ROLE_LABELS, isUserRole } from "@/types/users";
@@ -101,6 +101,40 @@ function clearGoogleRedirectPending(): void {
   removeStorage(GOOGLE_REDIRECT_PENDING_KEY);
 }
 
+async function waitForAuthReadyAfterRedirect(): Promise<void> {
+  const firebaseAuth = auth;
+  if (!firebaseAuth) return;
+
+  const authWithReady = firebaseAuth as typeof firebaseAuth & {
+    authStateReady?: () => Promise<void>;
+  };
+  if (typeof authWithReady.authStateReady === "function") {
+    await authWithReady.authStateReady();
+    return;
+  }
+
+  await new Promise<void>((resolve) => {
+    const timer = window.setTimeout(() => {
+      unsubscribe();
+      resolve();
+    }, 2000);
+
+    const unsubscribe = onAuthStateChanged(
+      firebaseAuth,
+      () => {
+        window.clearTimeout(timer);
+        unsubscribe();
+        resolve();
+      },
+      () => {
+        window.clearTimeout(timer);
+        unsubscribe();
+        resolve();
+      }
+    );
+  });
+}
+
 export default function Home() {
   const router = useRouter();
   const [settings, setSettings] = useState<Settings>(defaultSettings);
@@ -129,6 +163,10 @@ export default function Home() {
           const pendingRole = getPendingGoogleRole();
           const redirectPending = isGoogleRedirectPending();
           const loginRole = pendingRole ?? role;
+          if ((redirectPending || pendingRole) && !redirectResult?.user && !auth.currentUser) {
+            await waitForAuthReadyAfterRedirect();
+            if (cancelled) return;
+          }
           const firebaseUser =
             redirectResult?.user || (redirectPending || pendingRole ? auth.currentUser : null);
 
@@ -200,9 +238,6 @@ export default function Home() {
             clearPendingGoogleRole();
           }
           if (redirectPending) {
-            const errorMessage = "Google 登入流程未完成，請再試一次";
-            setPendingGoogleError(errorMessage);
-            setError(errorMessage);
             clearGoogleRedirectPending();
           }
         }

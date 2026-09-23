@@ -142,8 +142,8 @@ function createRuntime(width: number, height: number): RuntimeState {
       active: false,
       x: 0,
       y: 0,
-      width: 68,
-      height: 30,
+      width: 96,
+      height: 60,
       speed: CONFIG.projectileSpeed,
       angle: 0,
       spinSpeed: CONFIG.projectileSpinSpeed,
@@ -210,12 +210,11 @@ function drawWrench(ctx: CanvasRenderingContext2D, x: number, y: number, width: 
   ctx.rotate(Math.PI / 4);
   ctx.scale(scale, scale);
   ctx.translate(-12, -12);
-  ctx.fillStyle = "#111111";
+  ctx.fillStyle = "transparent";
   ctx.strokeStyle = "#111111";
   ctx.lineWidth = 2;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
-  ctx.fill(path);
   ctx.stroke(path);
   ctx.restore();
 }
@@ -403,8 +402,8 @@ export default function HomepageCornerWrench() {
 
     runtime.nuts.forEach((nut) => drawNut(ctx, nut));
 
-    const playerWidth = 74;
-    const playerHeight = 34;
+    const playerWidth = 96;
+    const playerHeight = 60;
     const playerX = Math.floor(runtime.width * (1 - CONFIG.wrenchZoneRatio / 2)) - playerWidth / 2;
     const playerY = runtime.playerY - playerHeight / 2;
 
@@ -449,11 +448,13 @@ export default function HomepageCornerWrench() {
   }, [finished, setPlayerYFromClientY]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (finished || !pointerStartRef.current) return;
-    const dx = event.clientX - pointerStartRef.current.x;
-    const dy = event.clientY - pointerStartRef.current.y;
-    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
-      pointerDraggedRef.current = true;
+    if (finished) return;
+    if (pointerStartRef.current) {
+      const dx = event.clientX - pointerStartRef.current.x;
+      const dy = event.clientY - pointerStartRef.current.y;
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+        pointerDraggedRef.current = true;
+      }
     }
     setPlayerYFromClientY(event.clientY);
   }, [finished, setPlayerYFromClientY]);
@@ -631,7 +632,7 @@ export default function HomepageCornerWrench() {
                       關閉
                     </button>
                   </div>
-                  <p className="text-xs text-slate-700 mt-5">拖曳上下移動，點擊或空白鍵發射，Esc 關閉</p>
+                  <p className="text-xs text-slate-700 mt-5">滑鼠上下移動板手，點擊或空白鍵發射，Esc 關閉</p>
                 </div>
               </div>
             )}

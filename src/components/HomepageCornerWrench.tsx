@@ -96,6 +96,7 @@ type LeaderboardRow = {
   role: string;
   roleLabel: string;
   score: number;
+  recordDate: string;
 };
 
 type LeaderboardMy = {
@@ -104,6 +105,7 @@ type LeaderboardMy = {
   roleLabel: string;
   score: number;
   rank: number | null;
+  recordDate: string;
 };
 
 async function loadRemoteBestScore(): Promise<number | null> {
@@ -784,7 +786,8 @@ export default function HomepageCornerWrench() {
                   </div>
                   {boardMy && (
                     <p className="mb-3 text-sm">
-                      我的名次: {boardMy.rank ?? "未上榜"}（{boardMy.score} 分）
+                      我的名次: {boardMy.rank ?? "未上榜"}（{boardMy.score} 分
+                      {boardMy.recordDate ? `，${boardMy.recordDate}` : ""}）
                     </p>
                   )}
                   {boardLoading ? (
@@ -798,7 +801,8 @@ export default function HomepageCornerWrench() {
                           <th className="py-1 pr-2">#</th>
                           <th className="py-1 pr-2">名稱</th>
                           <th className="py-1 pr-2">身分</th>
-                          <th className="py-1 text-right">分數</th>
+                          <th className="py-1 pr-2">分數</th>
+                          <th className="py-1 text-right">紀錄日期</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -807,7 +811,8 @@ export default function HomepageCornerWrench() {
                             <td className="py-1 pr-2">{row.rank}</td>
                             <td className="py-1 pr-2">{row.name}</td>
                             <td className="py-1 pr-2">{row.roleLabel}</td>
-                            <td className="py-1 text-right">{row.score}</td>
+                            <td className="py-1 pr-2">{row.score}</td>
+                            <td className="py-1 text-right whitespace-nowrap">{row.recordDate || "—"}</td>
                           </tr>
                         ))}
                       </tbody>

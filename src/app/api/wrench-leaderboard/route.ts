@@ -31,6 +31,12 @@ function displayNameOf(session: { account: string; displayName?: string }): stri
   return session.displayName || session.account || "玩家";
 }
 
+function formatRecordDate(ms: number): string {
+  if (!Number.isFinite(ms) || ms <= 0) return "";
+  const d = new Date(ms);
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
 export async function GET() {
   try {
     const topSnap = await getDocs(
@@ -46,6 +52,7 @@ export async function GET() {
         roleLabel: ROLE_LABELS[data.role] ?? data.role,
         score: Number(data.score) || 0,
         uid: data.uid,
+        recordDate: formatRecordDate(Number(data.updatedAt) || 0),
       };
     });
 
@@ -56,6 +63,7 @@ export async function GET() {
       roleLabel: string;
       score: number;
       rank: number | null;
+      recordDate: string;
     } | null = null;
 
     if (session) {
@@ -71,6 +79,7 @@ export async function GET() {
           roleLabel: ROLE_LABELS[data.role] ?? data.role,
           score: Number(data.score) || 0,
           rank: rankIndex >= 0 ? rankIndex + 1 : null,
+          recordDate: formatRecordDate(Number(data.updatedAt) || 0),
         };
       }
     }

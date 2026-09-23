@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, User } from "firebase/auth";
 import { auth, googleProvider, ensureSignedOut } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import { UserRole, ROLE_HOME, ROLE_LABELS, isUserRole } from "@/types/users";
@@ -39,6 +39,24 @@ function getErrorMessage(data: ApiResponse | null, fallback: string): string {
   return typeof data?.message === "string" && data.message ? data.message : fallback;
 }
 
+const GOOGLE_ROLE_STORAGE_KEY = "pendingGoogleRole";
+
+function getPendingGoogleRole(): UserRole | null {
+  if (typeof window === "undefined") return null;
+  const role = window.localStorage.getItem(GOOGLE_ROLE_STORAGE_KEY);
+  return isUserRole(role) ? role : null;
+}
+
+function setPendingGoogleRole(role: UserRole): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(GOOGLE_ROLE_STORAGE_KEY, role);
+}
+
+function clearPendingGoogleRole(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(GOOGLE_ROLE_STORAGE_KEY);
+}
+
 export default function Home() {
   const router = useRouter();
   const [settings, setSettings] = useState<Settings>(defaultSettings);
@@ -51,16 +69,95 @@ export default function Home() {
   const [error, setError] = useState("");
   const [checkingSession, setCheckingSession] = useState(true);
 
+  async function completeGoogleSignIn(firebaseUser: User, loginRole: UserRole): Promise<boolean> {
+    const email = firebaseUser.email?.toLowerCase().trim();
+
+    if (!email) {
+      await ensureSignedOut();
+      setError("無法取得 Google 帳號資訊");
+      return false;
+    }
+
+    const idToken = await firebaseUser.getIdToken();
+    const res = await fetch("/api/auth/google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken, role: loginRole }),
+    });
+    const data = await parseApiResponse(res);
+
+    if (!res.ok || !data?.success || !data.user) {
+      await ensureSignedOut();
+      setError(getErrorMessage(data, `Google 登入失敗（HTTP ${res.status}）`));
+      return false;
+    }
+
+    if (typeof data.user.uid !== "string" || !data.user.uid) {
+      await ensureSignedOut();
+      setError("Google 登入回應格式錯誤，請稍後再試");
+      return false;
+    }
+
+    const user: UserSession = {
+      uid: data.user.uid,
+      email: data.user.email || "",
+      account: data.user.account || "",
+      displayName: data.user.displayName || "",
+      role: (data.user.role || loginRole) as UserRole,
+    };
+    setCachedSession(user);
+    router.push(ROLE_HOME[user.role]);
+    return true;
+  }
+
   useEffect(() => {
     let cancelled = false;
-    fetchSession(true).then((session) => {
-      if (cancelled) return;
-      if (session && isUserRole(session.role)) {
-        router.push(ROLE_HOME[session.role]);
-        return;
+    async function initSession() {
+      try {
+        if (auth) {
+          const redirectResult = await getRedirectResult(auth);
+          if (cancelled) return;
+
+          const pendingRole = getPendingGoogleRole();
+          const loginRole = pendingRole ?? "student";
+          const redirectUser = redirectResult?.user || (pendingRole ? auth.currentUser : null);
+
+          if (redirectUser && isUserRole(loginRole)) {
+            setGoogleLoading(true);
+            setError("");
+            await completeGoogleSignIn(redirectUser, loginRole);
+            clearPendingGoogleRole();
+            return;
+          }
+          if (pendingRole) {
+            clearPendingGoogleRole();
+          }
+        }
+      } catch (err: unknown) {
+        console.error("Google redirect login error:", err);
+        clearPendingGoogleRole();
+        const e = err as { code?: string; message?: string };
+        const code = e?.code || "";
+        const message = e?.message || String(err);
+        if (code) {
+          setError(`Google 登入失敗（${code}）`);
+        } else {
+          setError(`Google 登入失敗：${message}`);
+        }
+      } finally {
+        if (cancelled) return;
+        const session = await fetchSession(true);
+        if (cancelled) return;
+        if (session && isUserRole(session.role)) {
+          router.push(ROLE_HOME[session.role]);
+          return;
+        }
+        setGoogleLoading(false);
+        setCheckingSession(false);
       }
-      setCheckingSession(false);
-    });
+    }
+
+    initSession();
     return () => {
       cancelled = true;
     };
@@ -168,6 +265,13 @@ export default function Home() {
     };
 
     try {
+      const isMobileBrowser = /Android|iPhone|iPad|iPod|Mobile/i.test(window.navigator.userAgent);
+      if (isMobileBrowser) {
+        setPendingGoogleRole(role);
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+
       let result;
       try {
         result = await signInWithPopup(auth, googleProvider);
@@ -177,54 +281,19 @@ export default function Home() {
           const retryProvider = new GoogleAuthProvider();
           retryProvider.setCustomParameters({ prompt: "select_account" });
           result = await signInWithPopup(auth, retryProvider);
+        } else if (e?.code === "auth/invalid-credential") {
+          setPendingGoogleRole(role);
+          await signInWithRedirect(auth, googleProvider);
+          return;
         } else {
           throw err;
         }
       }
       closeOpenedWindows();
-      const email = result.user.email?.toLowerCase().trim();
-
-      if (!email) {
-        await ensureSignedOut();
-        setError("無法取得 Google 帳號資訊");
-        setGoogleLoading(false);
-        return;
-      }
-
-      const idToken = await result.user.getIdToken();
-      const res = await fetch("/api/auth/google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken, role }),
-      });
-      const data = await parseApiResponse(res);
-
-      if (!res.ok || !data?.success || !data.user) {
-        await ensureSignedOut();
-        setError(getErrorMessage(data, `Google 登入失敗（HTTP ${res.status}）`));
-        setGoogleLoading(false);
-        return;
-      }
-
-      if (typeof data.user.uid !== "string" || !data.user.uid) {
-        await ensureSignedOut();
-        setError("Google 登入回應格式錯誤，請稍後再試");
-        setGoogleLoading(false);
-        return;
-      }
-
-      const user: UserSession = {
-        uid: data.user.uid,
-        email: data.user.email || "",
-        account: data.user.account || "",
-        displayName: data.user.displayName || "",
-        role: (data.user.role || role) as UserRole,
-      };
-      setCachedSession(user);
-
-      router.push(ROLE_HOME[role]);
+      await completeGoogleSignIn(result.user, role);
     } catch (err: unknown) {
       console.error("Google login error:", err);
+      clearPendingGoogleRole();
       const e = err as { code?: string; message?: string };
       const code = e?.code || "";
       const message = e?.message || String(err);
@@ -243,6 +312,8 @@ export default function Home() {
         setError("Firebase 未找到 Google 登入設定，請確認供應商已啟用");
       } else if (code === "auth/network-request-failed") {
         setError("網路錯誤，無法連線 Firebase");
+      } else if (code === "auth/invalid-credential") {
+        setError("Google 登入憑證無效，請重試或改用系統瀏覽器");
       } else if (code) {
         setError(`Google 登入失敗（${code}）`);
       } else {

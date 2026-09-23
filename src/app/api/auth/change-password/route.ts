@@ -6,12 +6,21 @@ import { verifySession } from "@/lib/dal";
 import { createSession, getSession, unauthorized, forbidden } from "@/lib/server-session";
 import { revokeJti } from "@/lib/revocation";
 import { logActivity, getClientIp } from "@/lib/audit";
+import { enforceRateLimit, RATE, checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 
 export async function POST(request: NextRequest) {
   try {
-    const { account, oldPassword, newPassword, role } = await request.json();
     const ip = getClientIp(request);
+    const limited = enforceRateLimit(
+      request,
+      "change-password",
+      RATE.CHANGE_PASSWORD.limit,
+      RATE.CHANGE_PASSWORD.windowMs
+    );
+    if (limited) return limited;
+
+    const { account, oldPassword, newPassword, role } = await request.json();
 
     if (!account || !oldPassword || !newPassword) {
       return NextResponse.json({ success: false, message: "請填寫完整資訊" });
@@ -51,6 +60,9 @@ export async function POST(request: NextRequest) {
 
     const isValid = await verifyPassword(oldPassword, userData.passwordHash);
     if (!isValid) {
+      // 舊密碼錯誤也計入失敗（enforceRateLimit 已先計成功次數，此處補記失敗軸）
+      const failKey = `change-password-fail:${ip}`;
+      const fail = checkRateLimit(failKey, 5, RATE.CHANGE_PASSWORD.windowMs);
       await logActivity({
         userId: session.uid,
         role,
@@ -58,6 +70,7 @@ export async function POST(request: NextRequest) {
         ip,
         details: "變更密碼時舊密碼錯誤",
       });
+      if (!fail.ok) return tooManyRequests(fail.retryAfterSec);
       return NextResponse.json({ success: false, message: "目前密碼錯誤" });
     }
 

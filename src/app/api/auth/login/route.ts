@@ -4,6 +4,7 @@ import { db } from "@/lib/firebase";
 import { verifyPassword } from "@/lib/auth";
 import { createSession } from "@/lib/server-session";
 import { logActivity, getClientIp } from "@/lib/audit";
+import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 
 const LOCK_THRESHOLD = 5;
@@ -11,6 +12,9 @@ const LOCK_DURATION_MS = 15 * 60 * 1000;
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = enforceRateLimit(request, "login", RATE.LOGIN.limit, RATE.LOGIN.windowMs);
+    if (limited) return limited;
+
     const { account, password, role } = await request.json();
     const ip = getClientIp(request);
 

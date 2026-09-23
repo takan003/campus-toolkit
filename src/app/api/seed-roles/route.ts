@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { collection, query, where, getDocs, addDoc, updateDoc, deleteField } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { hashPassword } from "@/lib/auth";
 import { verifySession } from "@/lib/dal";
 import { unauthorized, forbidden } from "@/lib/server-session";
+import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import {
   ROLE_COLLECTIONS,
   BaseUserRecord,
@@ -12,19 +13,31 @@ import {
   StaffRecord,
 } from "@/types/users";
 
-const DEFAULT_EMAIL = "takan003@gms.hlgs.hlc.edu.tw";
-const DEFAULT_ACCOUNT = "takan003";
-const DEFAULT_PASSWORD = "111zzzZZZ";
+function seedCredentials(): { email: string; account: string; password: string } | null {
+  const email = process.env.SEED_EMAIL;
+  const account = process.env.SEED_ACCOUNT;
+  const password = process.env.SEED_PASSWORD;
+  if (!email || !account || !password) return null;
+  return { email, account, password };
+}
 
-async function existsIn(collectionName: string): Promise<boolean> {
-  const byAccount = query(collection(db, collectionName), where("account", "==", DEFAULT_ACCOUNT));
-  const byEmail = query(collection(db, collectionName), where("email", "==", DEFAULT_EMAIL));
+async function existsIn(collectionName: string, account: string, email: string): Promise<boolean> {
+  const byAccount = query(collection(db, collectionName), where("account", "==", account));
+  const byEmail = query(collection(db, collectionName), where("email", "==", email));
   const [a, e] = await Promise.all([getDocs(byAccount), getDocs(byEmail)]);
   return !a.empty || !e.empty;
 }
 
 export async function seedRoles() {
   try {
+    const creds = seedCredentials();
+    if (!creds) {
+      return NextResponse.json(
+        { success: false, message: "種子帳號未設定（SEED_ACCOUNT/SEED_EMAIL/SEED_PASSWORD）" },
+        { status: 403 }
+      );
+    }
+    const { email: DEFAULT_EMAIL, account: DEFAULT_ACCOUNT, password: DEFAULT_PASSWORD } = creds;
     const passwordHash = await hashPassword(DEFAULT_PASSWORD, 12);
     const now = Date.now();
 
@@ -49,7 +62,7 @@ export async function seedRoles() {
     const skipped: string[] = [];
 
     const studentCol = ROLE_COLLECTIONS.student;
-    if (await existsIn(studentCol)) {
+    if (await existsIn(studentCol, DEFAULT_ACCOUNT, DEFAULT_EMAIL)) {
       skipped.push("student");
     } else {
       const student: StudentRecord = {
@@ -64,7 +77,7 @@ export async function seedRoles() {
     }
 
     const parentCol = ROLE_COLLECTIONS.parent;
-    if (await existsIn(parentCol)) {
+    if (await existsIn(parentCol, DEFAULT_ACCOUNT, DEFAULT_EMAIL)) {
       skipped.push("parent");
     } else {
       const parent: ParentRecord = {
@@ -80,7 +93,7 @@ export async function seedRoles() {
     }
 
     const staffCol = ROLE_COLLECTIONS.staff;
-    if (await existsIn(staffCol)) {
+    if (await existsIn(staffCol, DEFAULT_ACCOUNT, DEFAULT_EMAIL)) {
       skipped.push("staff");
     } else {
       const staff: StaffRecord = {
@@ -121,14 +134,18 @@ async function removeWrenchFieldFromUsers(): Promise<number> {
   return cleaned;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const limited = enforceRateLimit(request, "seed-roles", RATE.SEED_ROLES.limit, RATE.SEED_ROLES.windowMs);
+  if (limited) return limited;
   const session = await verifySession();
   if (!session) return unauthorized();
   if (session.role !== "admin") return forbidden();
   return seedRoles();
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const limited = enforceRateLimit(request, "seed-roles", RATE.SEED_ROLES.limit, RATE.SEED_ROLES.windowMs);
+  if (limited) return limited;
   const session = await verifySession();
   if (!session) return unauthorized();
   if (session.role !== "admin") return forbidden();

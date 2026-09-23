@@ -4,13 +4,30 @@ import { db } from "@/lib/firebase";
 import { hashPassword } from "@/lib/auth";
 import { requireRole, toAuthResponse } from "@/lib/dal";
 import { logActivity, getClientIp } from "@/lib/audit";
+import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = enforceRateLimit(
+      request,
+      "admin-create",
+      RATE.ADMIN_CREATE.limit,
+      RATE.ADMIN_CREATE.windowMs
+    );
+    if (limited) return limited;
+
     const ip = getClientIp(request);
     const adminsRef = collection(db, "admins");
     const existing = await getDocs(adminsRef);
     const isBootstrap = existing.empty;
+
+    // Bootstrap（首任管理員）需顯式開啟，避免資料被清空後免驗證建管
+    if (isBootstrap && process.env.ALLOW_BOOTSTRAP_ADMIN !== "true") {
+      return NextResponse.json(
+        { success: false, message: "初始管理員建立已停用（ALLOW_BOOTSTRAP_ADMIN 未啟用）" },
+        { status: 403 }
+      );
+    }
 
     let session = null;
     if (!isBootstrap) {

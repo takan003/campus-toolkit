@@ -14,6 +14,7 @@ import {
 import { db } from "@/lib/firebase";
 import { verifySession } from "@/lib/dal";
 import { unauthorized } from "@/lib/server-session";
+import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { ROLE_LABELS, UserRole } from "@/types/users";
 
 const COLLECTION = "wrenchLeaderboard";
@@ -93,6 +94,15 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const session = await verifySession();
   if (!session) return unauthorized();
+
+  const limited = enforceRateLimit(
+    request,
+    "leaderboard-post",
+    RATE.LEADERBOARD_POST.limit,
+    RATE.LEADERBOARD_POST.windowMs,
+    session.uid
+  );
+  if (limited) return limited;
 
   const body = await request.json().catch(() => null);
   const raw = body?.score;

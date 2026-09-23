@@ -3,10 +3,14 @@ import { collection, query, where, getDocs, updateDoc, doc } from "firebase/fire
 import { db } from "@/lib/firebase";
 import { createSession } from "@/lib/server-session";
 import { logActivity, getClientIp } from "@/lib/audit";
+import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 
 export async function POST(request: NextRequest) {
   try {
+    const limited = enforceRateLimit(request, "google", RATE.GOOGLE.limit, RATE.GOOGLE.windowMs);
+    if (limited) return limited;
+
     const { idToken, role } = await request.json();
     const ip = getClientIp(request);
 

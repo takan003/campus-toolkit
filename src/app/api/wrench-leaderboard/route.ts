@@ -15,6 +15,7 @@ import { db } from "@/lib/firebase";
 import { verifySession } from "@/lib/dal";
 import { unauthorized } from "@/lib/server-session";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
+import { assertSameOrigin } from "@/lib/csrf";
 import { ROLE_LABELS, UserRole } from "@/types/users";
 
 const COLLECTION = "wrenchLeaderboard";
@@ -92,6 +93,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const originDenied = assertSameOrigin(request);
+  if (originDenied) return originDenied;
+
   const session = await verifySession();
   if (!session) return unauthorized();
 

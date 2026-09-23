@@ -4,10 +4,14 @@ import { db } from "@/lib/firebase";
 import { createSession } from "@/lib/server-session";
 import { logActivity, getClientIp } from "@/lib/audit";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
+import { assertSameOrigin } from "@/lib/csrf";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 
 export async function POST(request: NextRequest) {
   try {
+    const originDenied = assertSameOrigin(request);
+    if (originDenied) return originDenied;
+
     const limited = enforceRateLimit(request, "google", RATE.GOOGLE.limit, RATE.GOOGLE.windowMs);
     if (limited) return limited;
 

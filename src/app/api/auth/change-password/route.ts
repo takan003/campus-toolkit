@@ -7,10 +7,14 @@ import { createSession, getSession, unauthorized, forbidden } from "@/lib/server
 import { revokeJti } from "@/lib/revocation";
 import { logActivity, getClientIp } from "@/lib/audit";
 import { enforceRateLimit, RATE, checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { assertSameOrigin } from "@/lib/csrf";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 
 export async function POST(request: NextRequest) {
   try {
+    const originDenied = assertSameOrigin(request);
+    if (originDenied) return originDenied;
+
     const ip = getClientIp(request);
     const limited = enforceRateLimit(
       request,

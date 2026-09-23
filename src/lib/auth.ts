@@ -1,7 +1,9 @@
 import bcrypt from "bcryptjs";
+import { clampCostFactor } from "@/lib/validation";
 
 export async function hashPassword(plainPassword: string, costFactor: number = 12): Promise<string> {
-  const salt = await bcrypt.genSalt(costFactor);
+  const cost = clampCostFactor(costFactor, 12);
+  const salt = await bcrypt.genSalt(cost);
   const hash = await bcrypt.hash(plainPassword, salt);
   return hash;
 }

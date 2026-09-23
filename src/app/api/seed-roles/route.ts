@@ -5,6 +5,7 @@ import { hashPassword } from "@/lib/auth";
 import { verifySession } from "@/lib/dal";
 import { unauthorized, forbidden } from "@/lib/server-session";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
+import { assertSameOrigin } from "@/lib/csrf";
 import {
   ROLE_COLLECTIONS,
   BaseUserRecord,
@@ -144,6 +145,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const originDenied = assertSameOrigin(request);
+  if (originDenied) return originDenied;
   const limited = enforceRateLimit(request, "seed-roles", RATE.SEED_ROLES.limit, RATE.SEED_ROLES.windowMs);
   if (limited) return limited;
   const session = await verifySession();

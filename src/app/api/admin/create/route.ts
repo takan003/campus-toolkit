@@ -5,9 +5,14 @@ import { hashPassword } from "@/lib/auth";
 import { requireRole, toAuthResponse } from "@/lib/dal";
 import { logActivity, getClientIp } from "@/lib/audit";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
+import { assertSameOrigin } from "@/lib/csrf";
+import { clampCostFactor, normalizeEmail, normalizeAccount, isStrongPassword } from "@/lib/validation";
 
 export async function POST(request: NextRequest) {
   try {
+    const originDenied = assertSameOrigin(request);
+    if (originDenied) return originDenied;
+
     const limited = enforceRateLimit(
       request,
       "admin-create",
@@ -38,28 +43,33 @@ export async function POST(request: NextRequest) {
 
     const { email, account, password, displayName, costFactor } = await request.json();
 
-    if (!email || !account || !password) {
+    const normEmail = normalizeEmail(email);
+    const normAccount = normalizeAccount(account);
+    if (!normEmail || !normAccount || !password) {
       return NextResponse.json({ success: false, message: "請填寫完整資訊" });
     }
+    if (!isStrongPassword(password)) {
+      return NextResponse.json({ success: false, message: "密碼至少 8 碼" });
+    }
 
-    const emailCheck = query(adminsRef, where("email", "==", email.toLowerCase().trim()));
+    const emailCheck = query(adminsRef, where("email", "==", normEmail));
     const emailSnapshot = await getDocs(emailCheck);
     if (!emailSnapshot.empty) {
       return NextResponse.json({ success: false, message: "此電子郵件已被使用" });
     }
 
-    const accountCheck = query(adminsRef, where("account", "==", account.toLowerCase().trim()));
+    const accountCheck = query(adminsRef, where("account", "==", normAccount));
     const accountSnapshot = await getDocs(accountCheck);
     if (!accountSnapshot.empty) {
       return NextResponse.json({ success: false, message: "此帳號已被使用" });
     }
 
-    const passwordHash = await hashPassword(password, costFactor || 12);
+    const passwordHash = await hashPassword(password, clampCostFactor(costFactor, 12));
 
     const newAdmin = {
-      email: email.toLowerCase().trim(),
-      account: account.toLowerCase().trim(),
-      displayName: displayName || "",
+      email: normEmail,
+      account: normAccount,
+      displayName: typeof displayName === "string" ? displayName.slice(0, 64) : "",
       passwordHash,
       twoFactorMethod: "none",
       totpSecret: "",

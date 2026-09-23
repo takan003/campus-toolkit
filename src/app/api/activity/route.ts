@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySession } from "@/lib/dal";
 import { logActivity, getClientIp } from "@/lib/audit";
+import { assertSameOrigin } from "@/lib/csrf";
 
 export async function POST(request: NextRequest) {
   try {
+    const originDenied = assertSameOrigin(request);
+    if (originDenied) return originDenied;
+
     const session = await verifySession();
     if (!session) {
       return NextResponse.json({ success: false, message: "未登入" }, { status: 401 });

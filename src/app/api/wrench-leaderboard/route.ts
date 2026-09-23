@@ -1,17 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getAdminDb } from "@/lib/firebase-admin";
 import { verifySession } from "@/lib/dal";
 import { unauthorized } from "@/lib/server-session";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
@@ -41,9 +29,8 @@ function formatRecordDate(ms: number): string {
 
 export async function GET() {
   try {
-    const topSnap = await getDocs(
-      query(collection(db, COLLECTION), orderBy("score", "desc"), limit(TOP_N))
-    );
+    const col = getAdminDb().collection(COLLECTION);
+    const topSnap = await col.orderBy("score", "desc").limit(TOP_N).get();
 
     const top = topSnap.docs.map((d, index) => {
       const data = d.data() as LeaderboardEntry;
@@ -69,9 +56,7 @@ export async function GET() {
     } | null = null;
 
     if (session) {
-      const mineSnap = await getDocs(
-        query(collection(db, COLLECTION), where("uid", "==", session.uid), limit(1))
-      );
+      const mineSnap = await col.where("uid", "==", session.uid).limit(1).get();
       if (!mineSnap.empty) {
         const data = mineSnap.docs[0].data() as LeaderboardEntry;
         const rankIndex = top.findIndex((e) => e.uid === session.uid);
@@ -116,10 +101,10 @@ export async function POST(request: NextRequest) {
   const newScore = Math.floor(raw);
 
   try {
-    const col = collection(db, COLLECTION);
+    const col = getAdminDb().collection(COLLECTION);
     const name = displayNameOf(session);
 
-    const mineSnap = await getDocs(query(col, where("uid", "==", session.uid), limit(1)));
+    const mineSnap = await col.where("uid", "==", session.uid).limit(1).get();
     const mineDoc = mineSnap.docs[0] ?? null;
     const currentScore = mineDoc ? Number(mineDoc.data().score) || 0 : 0;
 
@@ -133,7 +118,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const topSnap = await getDocs(query(col, orderBy("score", "desc"), limit(TOP_N)));
+    const topSnap = await col.orderBy("score", "desc").limit(TOP_N).get();
     const cutoff =
       topSnap.size >= TOP_N ? Number(topSnap.docs[TOP_N - 1].data().score) || 0 : 0;
 
@@ -155,18 +140,18 @@ export async function POST(request: NextRequest) {
     };
 
     if (mineDoc) {
-      await updateDoc(doc(db, COLLECTION, mineDoc.id), payload);
+      await mineDoc.ref.update(payload);
     } else {
-      await addDoc(col, payload);
+      await col.add(payload);
     }
 
-    const allSnap = await getDocs(query(col, orderBy("score", "desc")));
+    const allSnap = await col.orderBy("score", "desc").get();
     if (allSnap.size > TOP_N) {
       const excess = allSnap.docs.slice(TOP_N);
-      await Promise.all(excess.map((d) => deleteDoc(doc(db, COLLECTION, d.id))));
+      await Promise.all(excess.map((d) => d.ref.delete()));
     }
 
-    const refreshed = await getDocs(query(col, orderBy("score", "desc"), limit(TOP_N)));
+    const refreshed = await col.orderBy("score", "desc").limit(TOP_N).get();
     const rank = refreshed.docs.findIndex((d) => d.data().uid === session.uid);
 
     return NextResponse.json({

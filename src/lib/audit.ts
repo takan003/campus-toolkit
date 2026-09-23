@@ -1,6 +1,5 @@
 import "server-only";
-import { addDoc, collection } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getAdminDb } from "@/lib/firebase-admin";
 
 export type ActivityAction =
   | "login"
@@ -27,7 +26,7 @@ export function getClientIp(request: Request): string {
 
 export async function logActivity(entry: ActivityEntry): Promise<void> {
   try {
-    await addDoc(collection(db, "activityLog"), {
+    await getAdminDb().collection("activityLog").add({
       userId: entry.userId || "",
       role: entry.role || "",
       action: entry.action,

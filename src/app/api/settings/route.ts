@@ -1,0 +1,95 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getAdminDb } from "@/lib/firebase-admin";
+import { requireRole, toAuthResponse } from "@/lib/dal";
+import { assertSameOrigin } from "@/lib/csrf";
+import { enforceRateLimit, RATE } from "@/lib/rate-limit";
+import { getClientIp, logActivity } from "@/lib/audit";
+import { Settings, defaultSettings } from "@/types/settings";
+
+const SETTINGS_DOC = { collection: "settings", id: "system" };
+const MAX_SETTINGS = 200_000;
+
+function pickSettings(raw: Record<string, unknown>): Settings {
+  const out: Record<string, unknown> = { ...defaultSettings };
+  const keys = Object.keys(defaultSettings) as (keyof Settings)[];
+  for (const key of keys) {
+    if (!(key in raw)) continue;
+    const def = defaultSettings[key] as unknown;
+    const val = raw[key];
+    if (typeof def === "boolean") {
+      out[key] = Boolean(val);
+    } else if (typeof def === "number") {
+      const n = Number(val);
+      out[key] = Number.isFinite(n) ? n : def;
+    } else {
+      out[key] = typeof val === "string" ? val.slice(0, 500) : def;
+    }
+  }
+  return out as unknown as Settings;
+}
+
+export async function GET() {
+  try {
+    const snap = await getAdminDb()
+      .collection(SETTINGS_DOC.collection)
+      .doc(SETTINGS_DOC.id)
+      .get();
+    const data = snap.exists ? (snap.data() as Record<string, unknown>) : {};
+    const settings = pickSettings(data ?? {});
+    return NextResponse.json({ success: true, settings });
+  } catch {
+    return NextResponse.json(
+      { success: true, settings: defaultSettings }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const originDenied = assertSameOrigin(request);
+    if (originDenied) return originDenied;
+
+    const limited = enforceRateLimit(
+      request,
+      "settings-put",
+      30,
+      60_000
+    );
+    if (limited) return limited;
+
+    const { session, denial } = await requireRole("admin");
+    if (denial) return toAuthResponse(denial);
+
+    const raw = await request.json().catch(() => null);
+    if (!raw || typeof raw !== "object") {
+      return NextResponse.json({ success: false, message: "無效的設定內容" }, { status: 400 });
+    }
+    const body = raw as Record<string, unknown>;
+    if (JSON.stringify(body).length > MAX_SETTINGS) {
+      return NextResponse.json({ success: false, message: "設定過大" }, { status: 413 });
+    }
+
+    const settings = pickSettings(body);
+    if (settings.sessionTimeout < 1) settings.sessionTimeout = 1;
+    if (settings.passwordCostFactor < 1) settings.passwordCostFactor = 1;
+    if (settings.passwordCostFactor > 99) settings.passwordCostFactor = 99;
+
+    await getAdminDb()
+      .collection(SETTINGS_DOC.collection)
+      .doc(SETTINGS_DOC.id)
+      .set(settings, { merge: true });
+
+    await logActivity({
+      userId: session.uid,
+      role: "admin",
+      action: "settings_change",
+      ip: getClientIp(request),
+      details: "系統設定已更新",
+    });
+
+    return NextResponse.json({ success: true, settings, message: "設定已儲存" });
+  } catch (error) {
+    console.error("Settings PUT error:", error);
+    return NextResponse.json({ success: false, message: "系統錯誤" }, { status: 500 });
+  }
+}

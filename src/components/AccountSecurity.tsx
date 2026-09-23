@@ -2,10 +2,8 @@
 
 import { useEffect, useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
-import { UserRole, ROLE_COLLECTIONS, ROLE_LABELS, ROLE_SPECIFIC_FIELDS, isUserRole } from "@/types/users";
+import { UserRole, ROLE_LABELS, ROLE_SPECIFIC_FIELDS } from "@/types/users";
 import { fetchSession, logout } from "@/lib/session";
 import Copyright from "@/components/Copyright";
 
@@ -33,7 +31,7 @@ export default function AccountSecurityPage({ role }: { role: Exclude<UserRole, 
       setAccount(session.account);
       setEmail(session.email);
       setName(session.displayName);
-      loadUserData(session.uid);
+      void loadProfile();
     });
     return () => {
       cancelled = true;
@@ -42,32 +40,33 @@ export default function AccountSecurityPage({ role }: { role: Exclude<UserRole, 
   }, [router, role]);
 
   useEffect(() => {
+    let cancelled = false;
     async function loadSettings() {
       try {
-        const docRef = doc(db, "settings", "system");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setSettings(docSnap.data() as Settings);
+        const res = await fetch("/api/settings", { cache: "no-store" });
+        if (cancelled || !res.ok) return;
+        const data = await res.json();
+        if (data?.success && data.settings) {
+          setSettings({ ...defaultSettings, ...data.settings });
         }
       } catch (error) {
         console.error("載入設定失敗:", error);
       }
     }
     loadSettings();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  async function loadUserData(uid: string) {
+  async function loadProfile() {
     try {
-      const docRef = doc(db, ROLE_COLLECTIONS[role], uid);
-      const snap = await getDoc(docRef);
-      if (snap.exists()) {
-        const data = snap.data();
-        if (data.name) setName(data.name);
-        const fields: Record<string, string> = {};
-        for (const f of ROLE_SPECIFIC_FIELDS[role]) {
-          fields[f.key] = String(data[f.key] ?? "");
-        }
-        setRoleFields(fields);
+      const res = await fetch("/api/me", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data?.success && data.profile) {
+        if (data.profile.name) setName(data.profile.name);
+        setRoleFields(data.profile.fields || {});
       }
     } catch (error) {
       console.error("載入用戶資料失敗:", error);

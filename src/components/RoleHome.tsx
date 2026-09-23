@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import { UserRole, ROLE_HOME, ROLE_LABELS } from "@/types/users";
 import { fetchSession, logout } from "@/lib/session";
@@ -41,18 +39,23 @@ export default function RoleHome({ role }: { role: Exclude<UserRole, "admin"> })
   }, [router, role]);
 
   useEffect(() => {
+    let cancelled = false;
     async function loadSettings() {
       try {
-        const docRef = doc(db, "settings", "system");
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setSettings(docSnap.data() as Settings);
+        const res = await fetch("/api/settings", { cache: "no-store" });
+        if (cancelled || !res.ok) return;
+        const data = await res.json();
+        if (data?.success && data.settings) {
+          setSettings({ ...defaultSettings, ...data.settings });
         }
       } catch (error) {
         console.error("載入設定失敗:", error);
       }
     }
     loadSettings();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function handleLogout() {

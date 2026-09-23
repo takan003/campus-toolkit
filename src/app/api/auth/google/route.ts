@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getAdminDb } from "@/lib/firebase-admin";
 import { createSession } from "@/lib/server-session";
 import { logActivity, getClientIp } from "@/lib/audit";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
@@ -47,8 +46,11 @@ export async function POST(request: NextRequest) {
     }
 
     const collectionName = ROLE_COLLECTIONS[role];
-    const q = query(collection(db, collectionName), where("email", "==", email));
-    const snapshot = await getDocs(q);
+    const snapshot = await getAdminDb()
+      .collection(collectionName)
+      .where("email", "==", email)
+      .limit(1)
+      .get();
 
     if (snapshot.empty) {
       await logActivity({
@@ -80,7 +82,7 @@ export async function POST(request: NextRequest) {
         ? undefined
         : [...((userData.loginRecords as number[]) || []), now].slice(-50);
 
-    await updateDoc(doc(db, collectionName, userDoc.id), {
+    await userDoc.ref.update({
       failedAttempts: 0,
       lockedUntil: 0,
       lastLogin: now,

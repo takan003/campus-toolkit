@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getAdminDb } from "@/lib/firebase-admin";
 import { verifyPassword } from "@/lib/auth";
 import { createSession } from "@/lib/server-session";
 import { logActivity, getClientIp } from "@/lib/audit";
@@ -31,16 +30,15 @@ export async function POST(request: NextRequest) {
     }
 
     const collectionName = ROLE_COLLECTIONS[role];
-    const usersRef = collection(db, collectionName);
+    const usersRef = getAdminDb().collection(collectionName);
 
-    const input = account.toLowerCase().trim();
+    const input = String(account).toLowerCase().trim();
     const isEmail = input.includes("@");
 
-    const q = isEmail
-      ? query(usersRef, where("email", "==", input))
-      : query(usersRef, where("account", "==", input));
-
-    const snapshot = await getDocs(q);
+    const snapshot = await usersRef
+      .where(isEmail ? "email" : "account", "==", input)
+      .limit(1)
+      .get();
 
     if (snapshot.empty) {
       await logActivity({
@@ -76,7 +74,7 @@ export async function POST(request: NextRequest) {
       const newFailCount = (userData.failedAttempts || 0) + 1;
       const lockUntil = newFailCount >= LOCK_THRESHOLD ? Date.now() + LOCK_DURATION_MS : 0;
 
-      await updateDoc(doc(db, collectionName, userDoc.id), {
+      await userDoc.ref.update({
         failedAttempts: newFailCount,
         lockedUntil: lockUntil,
       });
@@ -112,7 +110,7 @@ export async function POST(request: NextRequest) {
         ? undefined
         : [...((userData.loginRecords as number[]) || []), now].slice(-50);
 
-    await updateDoc(doc(db, collectionName, userDoc.id), {
+    await userDoc.ref.update({
       failedAttempts: 0,
       lockedUntil: 0,
       lastLogin: now,

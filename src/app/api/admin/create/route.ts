@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection, query, where, getDocs, addDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getAdminDb } from "@/lib/firebase-admin";
 import { hashPassword } from "@/lib/auth";
 import { requireRole, toAuthResponse } from "@/lib/dal";
 import { logActivity, getClientIp } from "@/lib/audit";
@@ -22,9 +21,9 @@ export async function POST(request: NextRequest) {
     if (limited) return limited;
 
     const ip = getClientIp(request);
-    const adminsRef = collection(db, "admins");
-    const existing = await getDocs(adminsRef);
-    const isBootstrap = existing.empty;
+    const adminsRef = getAdminDb().collection("admins");
+    const existingCount = (await adminsRef.count().get()).data().count;
+    const isBootstrap = existingCount === 0;
 
     // Bootstrap（首任管理員）需顯式開啟，避免資料被清空後免驗證建管
     if (isBootstrap && process.env.ALLOW_BOOTSTRAP_ADMIN !== "true") {
@@ -52,14 +51,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "密碼至少 8 碼" });
     }
 
-    const emailCheck = query(adminsRef, where("email", "==", normEmail));
-    const emailSnapshot = await getDocs(emailCheck);
+    const emailSnapshot = await adminsRef.where("email", "==", normEmail).limit(1).get();
     if (!emailSnapshot.empty) {
       return NextResponse.json({ success: false, message: "此電子郵件已被使用" });
     }
 
-    const accountCheck = query(adminsRef, where("account", "==", normAccount));
-    const accountSnapshot = await getDocs(accountCheck);
+    const accountSnapshot = await adminsRef.where("account", "==", normAccount).limit(1).get();
     if (!accountSnapshot.empty) {
       return NextResponse.json({ success: false, message: "此帳號已被使用" });
     }
@@ -82,7 +79,7 @@ export async function POST(request: NextRequest) {
       createdAt: Date.now(),
     };
 
-    const docRef = await addDoc(adminsRef, newAdmin);
+    const docRef = await adminsRef.add(newAdmin);
 
     await logActivity({
       userId: session?.uid,

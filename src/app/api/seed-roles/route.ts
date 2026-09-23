@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection, query, where, getDocs, addDoc, updateDoc, deleteField } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getAdminDb, FieldValue } from "@/lib/firebase-admin";
 import { hashPassword } from "@/lib/auth";
 import { verifySession } from "@/lib/dal";
 import { unauthorized, forbidden } from "@/lib/server-session";
@@ -23,9 +22,11 @@ function seedCredentials(): { email: string; account: string; password: string }
 }
 
 async function existsIn(collectionName: string, account: string, email: string): Promise<boolean> {
-  const byAccount = query(collection(db, collectionName), where("account", "==", account));
-  const byEmail = query(collection(db, collectionName), where("email", "==", email));
-  const [a, e] = await Promise.all([getDocs(byAccount), getDocs(byEmail)]);
+  const col = getAdminDb().collection(collectionName);
+  const [a, e] = await Promise.all([
+    col.where("account", "==", account).limit(1).get(),
+    col.where("email", "==", email).limit(1).get(),
+  ]);
   return !a.empty || !e.empty;
 }
 
@@ -73,7 +74,7 @@ export async function seedRoles() {
         className: "101",
         classNumber: "10101",
       };
-      await addDoc(collection(db, studentCol), student);
+      await getAdminDb().collection(studentCol).add(student);
       created.push("student");
     }
 
@@ -89,7 +90,7 @@ export async function seedRoles() {
         className: "101",
         classNumber: "10101",
       };
-      await addDoc(collection(db, parentCol), parent);
+      await getAdminDb().collection(parentCol).add(parent);
       created.push("parent");
     }
 
@@ -104,7 +105,7 @@ export async function seedRoles() {
         title: "導師",
         attribute: "教師",
       };
-      await addDoc(collection(db, staffCol), staff);
+      await getAdminDb().collection(staffCol).add(staff);
       created.push("staff");
     }
 
@@ -124,10 +125,10 @@ export async function seedRoles() {
 async function removeWrenchFieldFromUsers(): Promise<number> {
   let cleaned = 0;
   for (const col of Object.values(ROLE_COLLECTIONS)) {
-    const snap = await getDocs(collection(db, col));
+    const snap = await getAdminDb().collection(col).get();
     for (const d of snap.docs) {
       if ("丟板手" in d.data()) {
-        await updateDoc(d.ref, { 丟板手: deleteField() });
+        await d.ref.update({ 丟板手: FieldValue.delete() });
         cleaned += 1;
       }
     }

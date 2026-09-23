@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import { logout } from "@/lib/session";
 import Copyright from "@/components/Copyright";
@@ -165,19 +163,19 @@ export default function SettingsPage() {
 
   async function loadSettings() {
     try {
-      const docRef = doc(db, "settings", "system");
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data() as Partial<Settings> & { workspaceLoginEnabled?: unknown };
-        delete data.workspaceLoginEnabled;
-        const mergedSettings = { ...defaultSettings, ...data };
-        setSettings(mergedSettings);
+      const res = await fetch("/api/settings", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.success && data.settings) {
+          const mergedSettings = { ...defaultSettings, ...data.settings };
+          setSettings(mergedSettings);
 
-        // 同步強制主題到 localStorage
-        if (mergedSettings.cssThemeId) {
-          localStorage.setItem("campusToolkitForcedTheme", mergedSettings.cssThemeId);
-        } else {
-          localStorage.removeItem("campusToolkitForcedTheme");
+          // 同步強制主題到 localStorage
+          if (mergedSettings.cssThemeId) {
+            localStorage.setItem("campusToolkitForcedTheme", mergedSettings.cssThemeId);
+          } else {
+            localStorage.removeItem("campusToolkitForcedTheme");
+          }
         }
       }
     } catch (error: unknown) {
@@ -194,16 +192,16 @@ export default function SettingsPage() {
   async function handleSave() {
     setSaving(true);
     try {
-      const docRef = doc(db, "settings", "system");
-      const payload: Record<string, unknown> = { ...settings };
-      delete payload.workspaceLoginEnabled;
-      await setDoc(docRef, payload);
-
-      fetch("/api/activity", {
-        method: "POST",
+      const res = await fetch("/api/settings", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ details: "系統設定已儲存" }),
-      }).catch(() => {});
+        body: JSON.stringify(settings),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.success) {
+        throw new Error(data?.message || "儲存失敗");
+      }
+      if (data.settings) setSettings({ ...defaultSettings, ...data.settings });
 
       // 同步強制主題到 localStorage
       if (settings.cssThemeId) {

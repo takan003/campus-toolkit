@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { defaultSettings } from "@/types/settings";
 import { getCachedSession, fetchSession, logout as clearSession } from "@/lib/session";
 
@@ -32,10 +30,10 @@ export default function IdleTimeout() {
 
     async function loadSettings() {
       try {
-        const snap = await getDoc(doc(db, "settings", "system"));
-        if (cancelled || !snap.exists()) return;
-        const data = snap.data();
-        const value = Number(data.sessionTimeout);
+        const res = await fetch("/api/settings", { cache: "no-store" });
+        if (cancelled || !res.ok) return;
+        const data = await res.json();
+        const value = Number(data?.settings?.sessionTimeout);
         if (Number.isFinite(value) && value >= 1) {
           setTimeoutMinutes(value);
         }

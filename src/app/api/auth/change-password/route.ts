@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getAdminDb } from "@/lib/firebase-admin";
 import { verifyPassword, hashPassword } from "@/lib/auth";
 import { verifySession } from "@/lib/dal";
 import { createSession, getSession, unauthorized, forbidden } from "@/lib/server-session";
@@ -46,15 +45,14 @@ export async function POST(request: NextRequest) {
     }
 
     const collectionName = ROLE_COLLECTIONS[role];
-    const usersRef = collection(db, collectionName);
+    const usersRef = getAdminDb().collection(collectionName);
     const input = account.toLowerCase().trim();
     const isEmail = input.includes("@");
 
-    const q = isEmail
-      ? query(usersRef, where("email", "==", input))
-      : query(usersRef, where("account", "==", input));
-
-    const snapshot = await getDocs(q);
+    const snapshot = await usersRef
+      .where(isEmail ? "email" : "account", "==", input)
+      .limit(1)
+      .get();
     if (snapshot.empty) {
       return NextResponse.json({ success: false, message: "帳號不存在" });
     }
@@ -80,7 +78,7 @@ export async function POST(request: NextRequest) {
 
     const passwordHash = await hashPassword(newPassword, 12);
     const newTokenVersion = (userData.tokenVersion || 1) + 1;
-    await updateDoc(doc(db, collectionName, userDoc.id), {
+    await userDoc.ref.update({
       passwordHash,
       tokenVersion: newTokenVersion,
     });

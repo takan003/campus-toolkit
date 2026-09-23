@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteSession, getSession } from "@/lib/server-session";
 import { logActivity, getClientIp } from "@/lib/audit";
+import { assertSameOrigin } from "@/lib/csrf";
 
 export async function POST(request: NextRequest) {
   try {
+    const originDenied = assertSameOrigin(request);
+    if (originDenied) return originDenied;
+
     const session = await getSession();
     await deleteSession();
     if (session) {

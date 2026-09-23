@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 預設：拒絕所有客戶端讀寫。
+    // 伺服器一律走 Firebase Admin SDK（不受本規則限制）。
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

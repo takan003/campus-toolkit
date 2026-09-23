@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { collection, query, where, getDocs, doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getAdminDb } from "@/lib/firebase-admin";
 import { hashPassword } from "@/lib/auth";
 import { requireRole, toAuthResponse } from "@/lib/dal";
 import { assertSameOrigin } from "@/lib/csrf";
@@ -17,8 +16,7 @@ export async function GET() {
     const denied = await requireAdmin();
     if (denied) return denied;
 
-    const adminsRef = collection(db, "admins");
-    const snapshot = await getDocs(adminsRef);
+    const snapshot = await getAdminDb().collection("admins").get();
 
     const admins = snapshot.docs.map((doc) => {
       const data = doc.data();
@@ -55,9 +53,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ success: false, message: "缺少管理員 ID" });
     }
 
-    const adminRef = doc(db, "admins", uid);
-    const adminSnap = await getDoc(adminRef);
-    if (!adminSnap.exists()) {
+    const adminRef = getAdminDb().collection("admins").doc(uid);
+    const adminSnap = await adminRef.get();
+    if (!adminSnap.exists) {
       return NextResponse.json({ success: false, message: "管理員不存在" });
     }
 
@@ -82,7 +80,7 @@ export async function PUT(request: NextRequest) {
       updateData.passwordHash = await hashPassword(password, clampCostFactor(costFactor, 12));
     }
 
-    await updateDoc(adminRef, updateData);
+    await adminRef.update(updateData);
 
     return NextResponse.json({ success: true, message: "更新成功" });
   } catch (error) {
@@ -105,15 +103,15 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, message: "缺少管理員 ID" });
     }
 
-    const snapshot = await getDocs(collection(db, "admins"));
-    if (snapshot.size <= 1) {
+    const snapshot = await getAdminDb().collection("admins").count().get();
+    if (snapshot.data().count <= 1) {
       return NextResponse.json(
         { success: false, message: "無法刪除最後一位管理員" },
         { status: 400 }
       );
     }
 
-    await deleteDoc(doc(db, "admins", uid));
+    await getAdminDb().collection("admins").doc(uid).delete();
 
     return NextResponse.json({ success: true, message: "刪除成功" });
   } catch (error) {

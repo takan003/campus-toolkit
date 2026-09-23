@@ -335,13 +335,12 @@ export default function HomepageCornerWrench() {
       saveBestScore(currentScore);
     }
 
+    // 只上傳「登入後本局實際拿到的分數」；匿名 localStorage 舊分不送上榜
     if (!loggedInRef.current || !sessionReadyRef.current) return;
-
-    const toSend = improved ? currentScore : previousBest;
-    if (typeof toSend !== "number") return;
-    if (syncedScoreRef.current !== null && toSend <= syncedScoreRef.current) return;
-    syncedScoreRef.current = toSend;
-    void saveRemoteBestScore(toSend);
+    if (currentScore <= 0) return;
+    if (syncedScoreRef.current !== null && currentScore <= syncedScoreRef.current) return;
+    syncedScoreRef.current = currentScore;
+    void saveRemoteBestScore(currentScore);
   }, []);
 
   const resetRound = useCallback(() => {
@@ -605,21 +604,16 @@ export default function HomepageCornerWrench() {
       if (cancelled) return;
 
       const currentLocal = bestScoreRef.current;
-      let mergedBest = currentLocal;
       if (remote !== null) {
-        mergedBest = Math.max(currentLocal ?? 0, remote);
-        bestScoreRef.current = mergedBest;
-        setBestScore(mergedBest);
+        // 顯示可取本機與雲端較高者，但 synced 只記雲端已有的分
+        const merged = Math.max(currentLocal ?? 0, remote);
+        bestScoreRef.current = merged;
+        setBestScore(merged);
+        syncedScoreRef.current = remote;
       }
+      // 匿名時留下的 localStorage 分數：不上傳、不寫入 synced
 
-      if (mergedBest !== null && mergedBest > 0) {
-        syncedScoreRef.current = mergedBest;
-        if (remote === null || (currentLocal ?? 0) > remote) {
-          void saveRemoteBestScore(mergedBest);
-        }
-      }
-
-      // 遊戲已結束但當時 session 未就緒 → 補送本局分數
+      // 遊戲已結束但當時 session 未就緒 → 補送「本局」分數（不是 localStorage）
       if (finishedRef.current && scoreRef.current > 0) {
         const finalScore = scoreRef.current;
         if (syncedScoreRef.current === null || finalScore > syncedScoreRef.current) {

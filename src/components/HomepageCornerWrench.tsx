@@ -372,7 +372,6 @@ export default function HomepageCornerWrench() {
     if (projectile.active) {
       projectile.x -= projectile.speed * dt;
       projectile.angle += projectile.spinSpeed * dt;
-      projectile.y = runtime.playerY - projectile.height / 2;
 
       const projectileBox = {
         x: projectile.x,

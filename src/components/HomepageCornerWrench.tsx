@@ -239,6 +239,7 @@ export default function HomepageCornerWrench() {
   const bestScoreRef = useRef<number | null>(null);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const pointerDraggedRef = useRef(false);
+  const finishedRef = useRef(false);
 
   const closeOverlay = useCallback(() => {
     setOpen(false);
@@ -256,6 +257,7 @@ export default function HomepageCornerWrench() {
     runtimeRef.current = createRuntime(960, 540);
     scoreRef.current = 0;
     wrenchesRef.current = CONFIG.startingWrenches;
+    finishedRef.current = false;
     setScore(0);
     setWrenchesLeft(CONFIG.startingWrenches);
     setComboLabel("");
@@ -304,13 +306,14 @@ export default function HomepageCornerWrench() {
     if (wrenchesRef.current <= 0) {
       runtime.running = false;
       commitBestScore(scoreRef.current);
+      finishedRef.current = true;
       setFinished(true);
     }
   }, [commitBestScore]);
 
   const fireProjectile = useCallback(() => {
     const runtime = runtimeRef.current;
-    if (!runtime.running || finished) return;
+    if (!runtime.running || finishedRef.current) return;
     const projectile = runtime.projectile;
     if (projectile.active) return;
 
@@ -325,7 +328,7 @@ export default function HomepageCornerWrench() {
       hitsThisShot: 0,
       resolved: false,
     };
-  }, [finished]);
+  }, []);
 
   const tick = useCallback((timestamp: number) => {
     const canvas = canvasRef.current;
@@ -334,7 +337,7 @@ export default function HomepageCornerWrench() {
     if (!ctx) return;
 
     const runtime = runtimeRef.current;
-    if (!runtime.running && !finished) return;
+    if (!runtime.running && !finishedRef.current) return;
 
     if (prevTsRef.current === 0) {
       prevTsRef.current = timestamp;
@@ -425,7 +428,7 @@ export default function HomepageCornerWrench() {
     }
 
     frameRef.current = window.requestAnimationFrame(tick);
-  }, [finished, resolveShot, spawnNut]);
+  }, [resolveShot, spawnNut]);
 
   const setPlayerYFromClientY = useCallback((clientY: number) => {
     const canvas = canvasRef.current;
@@ -439,15 +442,15 @@ export default function HomepageCornerWrench() {
   }, []);
 
   const handlePointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (finished) return;
+    if (finishedRef.current) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     pointerStartRef.current = { x: event.clientX, y: event.clientY };
     pointerDraggedRef.current = false;
     setPlayerYFromClientY(event.clientY);
-  }, [finished, setPlayerYFromClientY]);
+  }, [setPlayerYFromClientY]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
-    if (finished) return;
+    if (finishedRef.current) return;
     if (pointerStartRef.current) {
       const dx = event.clientX - pointerStartRef.current.x;
       const dy = event.clientY - pointerStartRef.current.y;
@@ -456,7 +459,7 @@ export default function HomepageCornerWrench() {
       }
     }
     setPlayerYFromClientY(event.clientY);
-  }, [finished, setPlayerYFromClientY]);
+  }, [setPlayerYFromClientY]);
 
   const handlePointerUp = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {

@@ -1,9 +1,11 @@
 import "server-only";
 import { initializeApp, getApps, cert, App, ServiceAccount } from "firebase-admin/app";
 import { getFirestore, Firestore } from "firebase-admin/firestore";
+import { getAuth, Auth } from "firebase-admin/auth";
 
 let adminApp: App | null = null;
 let adminDb: Firestore | null = null;
+let adminAuth: Auth | null = null;
 
 function parseServiceAccount(raw: string): ServiceAccount {
   let text = raw.trim();
@@ -49,29 +51,38 @@ function parseServiceAccount(raw: string): ServiceAccount {
   return parsed as unknown as ServiceAccount;
 }
 
-export function getAdminDb(): Firestore {
-  if (adminDb) return adminDb;
-
+function ensureAdminApp(): App {
+  if (adminApp) return adminApp;
+  if (getApps().length > 0) {
+    adminApp = getApps()[0];
+    return adminApp;
+  }
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
   if (!raw) {
     throw new Error(
       "FIREBASE_SERVICE_ACCOUNT_KEY 未設定，無法存取 Firestore（請加入 .env / Vercel 環境變數）"
     );
   }
-
   try {
-    if (getApps().length === 0) {
-      const serviceAccount = parseServiceAccount(raw);
-      adminApp = initializeApp({ credential: cert(serviceAccount) });
-    } else {
-      adminApp = getApps()[0];
-    }
-    adminDb = getFirestore(adminApp);
-    return adminDb;
+    const serviceAccount = parseServiceAccount(raw);
+    adminApp = initializeApp({ credential: cert(serviceAccount) });
+    return adminApp;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     throw new Error(`Firebase Admin SDK 初始化失敗: ${msg}`);
   }
+}
+
+export function getAdminDb(): Firestore {
+  if (adminDb) return adminDb;
+  adminDb = getFirestore(ensureAdminApp());
+  return adminDb;
+}
+
+export function getAdminAuth(): Auth {
+  if (adminAuth) return adminAuth;
+  adminAuth = getAuth(ensureAdminApp());
+  return adminAuth;
 }
 
 export { FieldValue } from "firebase-admin/firestore";

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminDb } from "@/lib/firebase-admin";
+import { getAdminDb, getAdminAuth } from "@/lib/firebase-admin";
 import { createSession } from "@/lib/server-session";
 import { logActivity, getClientIp } from "@/lib/audit";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
@@ -22,50 +22,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "參數錯誤" }, { status: 400 });
     }
 
-    const apiKey = (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "").trim();
-    if (!apiKey) {
+    // 本機驗證 Firebase ID token（signInWithPopup 產生），不打 identitytoolkit
+    let email: string | undefined;
+    try {
+      const decoded = await getAdminAuth().verifyIdToken(String(idToken));
+      email = decoded.email?.toLowerCase().trim();
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error("verifyIdToken failed:", msg);
       return NextResponse.json(
-        { success: false, message: "NEXT_PUBLIC_FIREBASE_API_KEY 未設定" },
-        { status: 500 }
-      );
-    }
-    if (!apiKey.startsWith("AIza")) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: `NEXT_PUBLIC_FIREBASE_API_KEY 格式不對（應以 AIza 開頭，長度約 39，目前長度 ${apiKey.length}）`,
-        },
-        { status: 500 }
-      );
-    }
-
-    const verifyRes = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdToken?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken, returnSecureToken: false }),
-      }
-    );
-
-    if (!verifyRes.ok) {
-      const contentType = verifyRes.headers.get("content-type") || "";
-      const errBody = await verifyRes.text().catch(() => "");
-      console.error("Google idToken verify failed:", verifyRes.status, contentType, errBody);
-      const detail = contentType.includes("json")
-        ? errBody.slice(0, 300)
-        : `非 JSON 回應（${contentType || "無 content-type"}），API Key 前綴 ${apiKey.slice(0, 8)}… 長度 ${apiKey.length}`;
-      return NextResponse.json(
-        {
-          success: false,
-          message: `Google 驗證失敗（${verifyRes.status}）：${detail}`,
-        },
+        { success: false, message: `Google token 驗證失敗：${msg.slice(0, 300)}` },
         { status: 401 }
       );
     }
 
-    const verified = (await verifyRes.json()) as { email?: string };
-    const email = verified.email?.toLowerCase().trim();
     if (!email) {
       return NextResponse.json({ success: false, message: "無法取得 Google 帳號資訊" }, { status: 401 });
     }

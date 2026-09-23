@@ -855,7 +855,6 @@ export default function HomepageCornerWrench() {
                     <p className="text-sm text-t3 mb-4">（本機紀錄，不列入排行榜）</p>
                   )}
                   <p className="text-base mb-4 font-medium">再來一局？</p>
-                  <p className="text-base mb-4 font-medium">再來一局？</p>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <button
                       type="button"

@@ -748,6 +748,20 @@ export default function HomepageCornerWrench() {
                 <path d="m6 6 12 12" />
               </svg>
             </button>
+            {/* 行動裝置（<sm）：狀態列放在畫布外的上方，避免遮擋左上角遊戲區 */}
+            <div className="sm:hidden mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded border border-black bg-white px-2.5 py-1.5 pr-16 font-mono text-xs text-black">
+              <span className="shrink-0">分數 {score}</span>
+              <span className="shrink-0">板手 {wrenchesLeft}</span>
+              {bestScore !== null && <span className="shrink-0">最高 {bestScore}</span>}
+              {playerRanked && (
+                <span className="shrink-0">榜上 {remoteBest !== null ? remoteBest : "—"}</span>
+              )}
+              <span className="min-w-0 max-w-full truncate">
+                玩家 {playerName}
+                {!playerRanked && "（不列入排行榜）"}
+              </span>
+            </div>
+
             <canvas
               ref={canvasRef}
               width={960}
@@ -761,7 +775,7 @@ export default function HomepageCornerWrench() {
               aria-label="互動畫布"
             />
 
-            <div className="pointer-events-none absolute left-3 top-3 text-black font-mono text-sm sm:text-base">
+            <div className="hidden sm:block pointer-events-none absolute left-3 top-3 text-black font-mono text-sm sm:text-base">
               <div>
                 玩家: {playerName}
                 {!playerRanked && "（不列入排行榜）"}

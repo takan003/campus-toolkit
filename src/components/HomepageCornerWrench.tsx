@@ -142,8 +142,8 @@ function createRuntime(width: number, height: number): RuntimeState {
       active: false,
       x: 0,
       y: 0,
-      width: 96,
-      height: 60,
+      width: 144,
+      height: 90,
       speed: CONFIG.projectileSpeed,
       angle: 0,
       spinSpeed: CONFIG.projectileSpinSpeed,
@@ -344,8 +344,8 @@ export default function HomepageCornerWrench() {
     const dt = deltaMs / 1000;
 
     runtime.elapsedMs += deltaMs;
-    const playerMinY = 36;
-    const playerMaxY = runtime.height - 36;
+    const playerMinY = 50;
+    const playerMaxY = runtime.height - 50;
 
     if (runtime.moveUp) runtime.playerY -= CONFIG.wrenchMoveSpeed * dt;
     if (runtime.moveDown) runtime.playerY += CONFIG.wrenchMoveSpeed * dt;
@@ -401,8 +401,8 @@ export default function HomepageCornerWrench() {
 
     runtime.nuts.forEach((nut) => drawNut(ctx, nut));
 
-    const playerWidth = 96;
-    const playerHeight = 60;
+    const playerWidth = 144;
+    const playerHeight = 90;
     const playerX = Math.floor(runtime.width * (1 - CONFIG.wrenchZoneRatio / 2)) - playerWidth / 2;
     const playerY = runtime.playerY - playerHeight / 2;
 
@@ -435,7 +435,7 @@ export default function HomepageCornerWrench() {
     const scaleY = canvas.height / rect.height;
     const y = (clientY - rect.top) * scaleY;
     const runtime = runtimeRef.current;
-    runtime.playerY = Math.max(36, Math.min(runtime.height - 36, y));
+    runtime.playerY = Math.max(50, Math.min(runtime.height - 50, y));
   }, []);
 
   const handlePointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
@@ -612,16 +612,17 @@ export default function HomepageCornerWrench() {
             {finished && (
               <div className="absolute inset-0 flex items-center justify-center bg-white/80">
                 <div className="w-[88%] max-w-[420px] rounded border border-black bg-white px-6 py-7 text-center text-black">
-                  <h2 className="text-2xl font-bold mb-2">本局結束</h2>
+                  <h2 className="text-2xl font-bold mb-2">遊戲結束</h2>
                   <p className="text-base mb-2">分數: {score}</p>
                   <p className="text-base mb-6">最高分: {bestScore ?? score}</p>
+                  <p className="text-base mb-4 font-medium">再來一局？</p>
                   <div className="flex flex-col sm:flex-row gap-3 justify-center">
                     <button
                       type="button"
                       onClick={resetRound}
                       className="px-4 py-2 rounded border border-black text-black hover:bg-slate-100 cursor-pointer"
                     >
-                      再來一次
+                      再來一局
                     </button>
                     <button
                       type="button"

@@ -42,13 +42,11 @@ export async function POST(request: NextRequest) {
     if (!verifyRes.ok) {
       const errBody = await verifyRes.text().catch(() => "");
       console.error("Google idToken verify failed:", verifyRes.status, errBody);
+      // 設定類診斷訊息（API Key 無效等），直接回給畫面以便排查
       return NextResponse.json(
         {
           success: false,
-          message: serverErrorMessage(
-            new Error(`Google 驗證失敗（${verifyRes.status}）：${errBody.slice(0, 300)}`),
-            "Google 驗證失敗"
-          ),
+          message: `Google 驗證失敗（${verifyRes.status}）：${errBody.slice(0, 300)}`,
         },
         { status: 401 }
       );

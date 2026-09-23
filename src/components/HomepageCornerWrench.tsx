@@ -118,15 +118,17 @@ async function loadRemoteBestScore(): Promise<number | null> {
   }
 }
 
-async function saveRemoteBestScore(score: number): Promise<void> {
+async function saveRemoteBestScore(score: number): Promise<boolean> {
   try {
-    await fetch("/api/wrench-leaderboard", {
+    const res = await fetch("/api/wrench-leaderboard", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ score }),
     });
-  } catch {
-    // 忽略同步失敗
+    return res.ok;
+  } catch (error) {
+    console.error("同步排行榜失敗:", error);
+    return false;
   }
 }
 
@@ -300,6 +302,8 @@ export default function HomepageCornerWrench() {
   const pointerDraggedRef = useRef(false);
   const finishedRef = useRef(false);
   const loggedInRef = useRef(false);
+  const sessionReadyRef = useRef(false);
+  const syncedScoreRef = useRef<number | null>(null);
 
   const closeOverlay = useCallback(() => {
     setOpen(false);
@@ -324,13 +328,20 @@ export default function HomepageCornerWrench() {
 
   const commitBestScore = useCallback((currentScore: number) => {
     const previousBest = bestScoreRef.current;
-    if (previousBest !== null && currentScore <= previousBest) return;
-    bestScoreRef.current = currentScore;
-    setBestScore(currentScore);
-    saveBestScore(currentScore);
-    if (loggedInRef.current) {
-      void saveRemoteBestScore(currentScore);
+    const improved = previousBest === null || currentScore > previousBest;
+    if (improved) {
+      bestScoreRef.current = currentScore;
+      setBestScore(currentScore);
+      saveBestScore(currentScore);
     }
+
+    if (!loggedInRef.current || !sessionReadyRef.current) return;
+
+    const toSend = improved ? currentScore : previousBest;
+    if (typeof toSend !== "number") return;
+    if (syncedScoreRef.current !== null && toSend <= syncedScoreRef.current) return;
+    syncedScoreRef.current = toSend;
+    void saveRemoteBestScore(toSend);
   }, []);
 
   const resetRound = useCallback(() => {
@@ -338,6 +349,7 @@ export default function HomepageCornerWrench() {
     scoreRef.current = 0;
     wrenchesRef.current = CONFIG.startingWrenches;
     finishedRef.current = false;
+    syncedScoreRef.current = null;
     setScore(0);
     setWrenchesLeft(CONFIG.startingWrenches);
     setComboLabel("");
@@ -388,6 +400,13 @@ export default function HomepageCornerWrench() {
       commitBestScore(scoreRef.current);
       finishedRef.current = true;
       setFinished(true);
+      if (loggedInRef.current && sessionReadyRef.current && scoreRef.current > 0) {
+        const finalScore = scoreRef.current;
+        if (syncedScoreRef.current === null || finalScore > syncedScoreRef.current) {
+          syncedScoreRef.current = finalScore;
+          void saveRemoteBestScore(finalScore);
+        }
+      }
     }
   }, [commitBestScore]);
 
@@ -572,20 +591,40 @@ export default function HomepageCornerWrench() {
 
     let cancelled = false;
     void (async () => {
-      const session = await fetchSession();
+      const session = await fetchSession(true);
       if (cancelled) return;
-      loggedInRef.current = Boolean(session);
+      const loggedIn = Boolean(session);
+      loggedInRef.current = loggedIn;
+      sessionReadyRef.current = true;
       setPlayerName(session ? session.displayName || session.account || "玩家" : "匿名");
-      setPlayerRanked(Boolean(session));
+      setPlayerRanked(loggedIn);
+
       if (!session) return;
+
       const remote = await loadRemoteBestScore();
       if (cancelled) return;
+
+      const currentLocal = bestScoreRef.current;
+      let mergedBest = currentLocal;
       if (remote !== null) {
-        const merged = Math.max(localBest ?? 0, remote);
-        bestScoreRef.current = merged;
-        setBestScore(merged);
-        if ((localBest ?? 0) > remote) {
-          void saveRemoteBestScore(localBest ?? 0);
+        mergedBest = Math.max(currentLocal ?? 0, remote);
+        bestScoreRef.current = mergedBest;
+        setBestScore(mergedBest);
+      }
+
+      if (mergedBest !== null && mergedBest > 0) {
+        syncedScoreRef.current = mergedBest;
+        if (remote === null || (currentLocal ?? 0) > remote) {
+          void saveRemoteBestScore(mergedBest);
+        }
+      }
+
+      // 遊戲已結束但當時 session 未就緒 → 補送本局分數
+      if (finishedRef.current && scoreRef.current > 0) {
+        const finalScore = scoreRef.current;
+        if (syncedScoreRef.current === null || finalScore > syncedScoreRef.current) {
+          syncedScoreRef.current = finalScore;
+          void saveRemoteBestScore(finalScore);
         }
       }
     })();
@@ -637,6 +676,8 @@ export default function HomepageCornerWrench() {
       runtimeRef.current.moveDown = false;
       runtimeRef.current.running = false;
       loggedInRef.current = false;
+      sessionReadyRef.current = false;
+      syncedScoreRef.current = null;
       setPlayerName("匿名");
       setPlayerRanked(false);
       if (frameRef.current !== null) {

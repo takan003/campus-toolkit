@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, User } from "firebase/auth";
+import {
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  User,
+} from "firebase/auth";
 import { auth, googleProvider, ensureSignedOut } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import { UserRole, ROLE_HOME, ROLE_LABELS, isUserRole } from "@/types/users";
@@ -55,6 +62,34 @@ function setPendingGoogleRole(role: UserRole): void {
 function clearPendingGoogleRole(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(GOOGLE_ROLE_STORAGE_KEY);
+}
+
+async function waitForCurrentUser(timeoutMs = 8000): Promise<User | null> {
+  const firebaseAuth = auth;
+  if (!firebaseAuth) return null;
+  if (firebaseAuth.currentUser) return firebaseAuth.currentUser;
+
+  return await new Promise<User | null>((resolve) => {
+    const timer = window.setTimeout(() => {
+      unsubscribe();
+      resolve(firebaseAuth.currentUser);
+    }, timeoutMs);
+
+    const unsubscribe = onAuthStateChanged(
+      firebaseAuth,
+      (user) => {
+        if (!user) return;
+        window.clearTimeout(timer);
+        unsubscribe();
+        resolve(user);
+      },
+      () => {
+        window.clearTimeout(timer);
+        unsubscribe();
+        resolve(firebaseAuth.currentUser);
+      }
+    );
+  });
 }
 
 export default function Home() {
@@ -120,7 +155,12 @@ export default function Home() {
 
           const pendingRole = getPendingGoogleRole();
           const loginRole = pendingRole ?? "student";
-          const redirectUser = redirectResult?.user || (pendingRole ? auth.currentUser : null);
+          let redirectUser = redirectResult?.user || (pendingRole ? auth.currentUser : null);
+
+          if (!redirectUser && pendingRole) {
+            redirectUser = await waitForCurrentUser();
+            if (cancelled) return;
+          }
 
           if (redirectUser && isUserRole(loginRole)) {
             setGoogleLoading(true);
@@ -130,6 +170,7 @@ export default function Home() {
             return;
           }
           if (pendingRole) {
+            setError("Google 登入流程未完成，請再試一次");
             clearPendingGoogleRole();
           }
         }

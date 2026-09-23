@@ -10,6 +10,7 @@ import { UserRole, ROLE_HOME, ROLE_LABELS, isUserRole } from "@/types/users";
 import { fetchSession, setCachedSession, UserSession } from "@/lib/session";
 import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
+import HomepageEasterEgg from "@/components/HomepageEasterEgg";
 
 export default function Home() {
   const router = useRouter();
@@ -190,6 +191,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-page px-4 pt-[20px]">
+      <HomepageEasterEgg />
       {/* 標題區域 */}
       <div className="text-center mb-6">
         <h1 className="text-4xl font-bold mb-2">數位校園工具箱</h1>

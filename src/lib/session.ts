@@ -1,4 +1,5 @@
 import { UserRole, ROLE_HOME, isUserRole } from "@/types/users";
+import { ensureSignedOut } from "@/lib/firebase";
 
 export interface UserSession {
   uid: string;
@@ -66,6 +67,7 @@ export function clearSession(): void {
 
 export async function logout(): Promise<void> {
   clearSession();
+  await ensureSignedOut();
   try {
     await fetch("/api/auth/logout", { method: "POST" });
   } catch {

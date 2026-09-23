@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth, GoogleAuthProvider, Auth } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, Auth, signOut } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -26,3 +26,12 @@ function createAuth(): Auth | null {
 
 export const auth = createAuth();
 export const googleProvider = new GoogleAuthProvider();
+
+export async function ensureSignedOut(): Promise<void> {
+  if (!auth?.currentUser) return;
+  try {
+    await signOut(auth);
+  } catch (error) {
+    console.warn("Firebase signOut 失敗:", error);
+  }
+}

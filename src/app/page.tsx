@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { signInWithPopup, signOut } from "firebase/auth";
-import { auth, googleProvider } from "@/lib/firebase";
+import { signInWithPopup } from "firebase/auth";
+import { auth, googleProvider, ensureSignedOut } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import { UserRole, ROLE_HOME, ROLE_LABELS, isUserRole } from "@/types/users";
 import { fetchSession, setCachedSession, UserSession } from "@/lib/session";
@@ -149,11 +149,12 @@ export default function Home() {
     }
 
     try {
+      await ensureSignedOut();
       const result = await signInWithPopup(auth, googleProvider);
       const email = result.user.email?.toLowerCase().trim();
 
       if (!email) {
-        await signOut(auth);
+        await ensureSignedOut();
         setError("無法取得 Google 帳號資訊");
         setGoogleLoading(false);
         return;
@@ -168,14 +169,14 @@ export default function Home() {
       const data = await parseApiResponse(res);
 
       if (!res.ok || !data?.success || !data.user) {
-        await signOut(auth);
+        await ensureSignedOut();
         setError(getErrorMessage(data, `Google 登入失敗（HTTP ${res.status}）`));
         setGoogleLoading(false);
         return;
       }
 
       if (typeof data.user.uid !== "string" || !data.user.uid) {
-        await signOut(auth);
+        await ensureSignedOut();
         setError("Google 登入回應格式錯誤，請稍後再試");
         setGoogleLoading(false);
         return;

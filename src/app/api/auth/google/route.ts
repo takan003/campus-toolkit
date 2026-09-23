@@ -22,16 +22,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "參數錯誤" }, { status: 400 });
     }
 
-    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+    const apiKey = (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "").trim();
     if (!apiKey) {
       return NextResponse.json(
         { success: false, message: "NEXT_PUBLIC_FIREBASE_API_KEY 未設定" },
         { status: 500 }
       );
     }
+    if (!apiKey.startsWith("AIza")) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `NEXT_PUBLIC_FIREBASE_API_KEY 格式不對（應以 AIza 開頭，長度約 39，目前長度 ${apiKey.length}）`,
+        },
+        { status: 500 }
+      );
+    }
 
     const verifyRes = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdToken?key=${apiKey}`,
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdToken?key=${encodeURIComponent(apiKey)}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -40,13 +49,16 @@ export async function POST(request: NextRequest) {
     );
 
     if (!verifyRes.ok) {
+      const contentType = verifyRes.headers.get("content-type") || "";
       const errBody = await verifyRes.text().catch(() => "");
-      console.error("Google idToken verify failed:", verifyRes.status, errBody);
-      // 設定類診斷訊息（API Key 無效等），直接回給畫面以便排查
+      console.error("Google idToken verify failed:", verifyRes.status, contentType, errBody);
+      const detail = contentType.includes("json")
+        ? errBody.slice(0, 300)
+        : `非 JSON 回應（${contentType || "無 content-type"}），API Key 前綴 ${apiKey.slice(0, 8)}… 長度 ${apiKey.length}`;
       return NextResponse.json(
         {
           success: false,
-          message: `Google 驗證失敗（${verifyRes.status}）：${errBody.slice(0, 300)}`,
+          message: `Google 驗證失敗（${verifyRes.status}）：${detail}`,
         },
         { status: 401 }
       );

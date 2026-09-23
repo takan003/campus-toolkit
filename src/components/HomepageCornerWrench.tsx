@@ -107,8 +107,8 @@ function playMetalHit(audioCtx: AudioContext | null): void {
 
   const now = audioCtx.currentTime;
   const master = audioCtx.createGain();
-  master.gain.setValueAtTime(0.22, now);
-  master.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+  master.gain.setValueAtTime(0.7, now);
+  master.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
   master.connect(audioCtx.destination);
 
   const partials = [1850, 2680, 3410];
@@ -117,13 +117,13 @@ function playMetalHit(audioCtx: AudioContext | null): void {
     const gain = audioCtx.createGain();
     osc.type = index === 0 ? "triangle" : "sine";
     osc.frequency.setValueAtTime(freq, now);
-    osc.frequency.exponentialRampToValueAtTime(freq * 0.72, now + 0.14);
-    gain.gain.setValueAtTime(0.55 / (index + 1), now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14 - index * 0.02);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.72, now + 0.16);
+    gain.gain.setValueAtTime(0.9 / (index + 1), now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16 - index * 0.02);
     osc.connect(gain);
     gain.connect(master);
     osc.start(now);
-    osc.stop(now + 0.16);
+    osc.stop(now + 0.18);
   });
 }
 
@@ -197,41 +197,25 @@ function drawNut(ctx: CanvasRenderingContext2D, nut: FallingNut) {
   ctx.fill();
 }
 
+const WRENCH_SVG_PATH = new Path2D(
+  "M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"
+);
+
 function drawWrench(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
-  const w = width;
-  const h = height;
-  const cx = x + w / 2;
-  const cy = y + h / 2;
+  const scale = Math.min(width / 24, height / 24);
 
   ctx.save();
-  ctx.translate(cx, cy);
-
-  const headR = h * 0.5;
-  const headCx = -w / 2 + headR;
-  const jawHalf = 0.4;
-  const innerR = headR * 0.52;
-  const aUpper = Math.PI + jawHalf;
-  const aLower = Math.PI - jawHalf;
-  const handleH = h * 0.36;
-
+  ctx.translate(x + width / 2, y + height / 2);
+  ctx.rotate(Math.PI / 4);
+  ctx.scale(scale, scale);
+  ctx.translate(-12, -12);
   ctx.fillStyle = "#111111";
   ctx.strokeStyle = "#111111";
-  ctx.lineWidth = Math.max(2, h * 0.08);
+  ctx.lineWidth = 2;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
-
-  ctx.beginPath();
-  ctx.roundRect(headCx, -handleH / 2, w - headR * 0.6, handleH, handleH / 2);
-  ctx.fill();
-
-  ctx.beginPath();
-  ctx.arc(headCx, 0, headR, aLower, aUpper, true);
-  ctx.lineTo(headCx + Math.cos(aUpper) * innerR, Math.sin(aUpper) * innerR);
-  ctx.arc(headCx, 0, innerR, aUpper, aLower, true);
-  ctx.lineTo(headCx + Math.cos(aLower) * headR, Math.sin(aLower) * headR);
-  ctx.closePath();
-  ctx.fill();
-
+  ctx.fill(WRENCH_SVG_PATH);
+  ctx.stroke(WRENCH_SVG_PATH);
   ctx.restore();
 }
 
@@ -587,7 +571,7 @@ export default function HomepageCornerWrench() {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[90] bg-black/90 flex items-center justify-center px-3 py-4">
+        <div className="fixed inset-0 z-[90] bg-black/50 flex items-center justify-center px-3 py-4">
           <button
             type="button"
             title="關閉（Esc）"

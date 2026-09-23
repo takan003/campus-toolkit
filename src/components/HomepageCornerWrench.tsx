@@ -90,12 +90,28 @@ function saveBestScore(value: number): void {
   }
 }
 
+type LeaderboardRow = {
+  rank: number;
+  name: string;
+  role: string;
+  roleLabel: string;
+  score: number;
+};
+
+type LeaderboardMy = {
+  name: string;
+  role: string;
+  roleLabel: string;
+  score: number;
+  rank: number | null;
+};
+
 async function loadRemoteBestScore(): Promise<number | null> {
   try {
-    const res = await fetch("/api/wrench-score", { cache: "no-store" });
+    const res = await fetch("/api/wrench-leaderboard", { cache: "no-store" });
     if (!res.ok) return null;
     const data = await res.json();
-    if (data?.success && typeof data.score === "number") return data.score;
+    if (data?.success && data.my && typeof data.my.score === "number") return data.my.score;
     return null;
   } catch {
     return null;
@@ -104,13 +120,25 @@ async function loadRemoteBestScore(): Promise<number | null> {
 
 async function saveRemoteBestScore(score: number): Promise<void> {
   try {
-    await fetch("/api/wrench-score", {
+    await fetch("/api/wrench-leaderboard", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ score }),
     });
   } catch {
     // 忽略同步失敗
+  }
+}
+
+async function loadLeaderboard(): Promise<{ top: LeaderboardRow[]; my: LeaderboardMy | null } | null> {
+  try {
+    const res = await fetch("/api/wrench-leaderboard", { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data?.success) return null;
+    return { top: data.top ?? [], my: data.my ?? null };
+  } catch {
+    return null;
   }
 }
 
@@ -251,6 +279,10 @@ export default function HomepageCornerWrench() {
   const [comboLabel, setComboLabel] = useState("");
   const [finished, setFinished] = useState(false);
   const [bestScore, setBestScore] = useState<number | null>(null);
+  const [showBoard, setShowBoard] = useState(false);
+  const [boardRows, setBoardRows] = useState<LeaderboardRow[]>([]);
+  const [boardMy, setBoardMy] = useState<LeaderboardMy | null>(null);
+  const [boardLoading, setBoardLoading] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameRef = useRef<number | null>(null);
@@ -269,7 +301,24 @@ export default function HomepageCornerWrench() {
 
   const closeOverlay = useCallback(() => {
     setOpen(false);
+    setShowBoard(false);
   }, []);
+
+  const refreshLeaderboard = useCallback(async () => {
+    setBoardLoading(true);
+    const data = await loadLeaderboard();
+    if (data) {
+      setBoardRows(data.top);
+      setBoardMy(data.my);
+    }
+    setBoardLoading(false);
+  }, []);
+
+  const toggleLeaderboard = useCallback(() => {
+    const next = !showBoard;
+    setShowBoard(next);
+    if (next) void refreshLeaderboard();
+  }, [refreshLeaderboard, showBoard]);
 
   const commitBestScore = useCallback((currentScore: number) => {
     const previousBest = bestScoreRef.current;
@@ -667,6 +716,62 @@ export default function HomepageCornerWrench() {
               {bestScore !== null && <div>最高分: {bestScore}</div>}
             </div>
 
+            <button
+              type="button"
+              onClick={toggleLeaderboard}
+              className="absolute right-3 top-3 z-10 rounded border border-black bg-white px-2 py-1 text-xs sm:text-sm text-black hover:bg-slate-100 cursor-pointer"
+            >
+              {showBoard ? "關閉排行榜" : "排行榜"}
+            </button>
+
+            {showBoard && (
+              <div className="absolute inset-0 z-[95] flex items-center justify-center bg-white/90 px-3">
+                <div className="w-full max-w-[480px] max-h-[86%] overflow-auto rounded border border-black bg-white p-4 text-black">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-lg font-bold">丟板手排行榜 TOP 100</h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowBoard(false)}
+                      className="text-sm underline cursor-pointer"
+                    >
+                      關閉
+                    </button>
+                  </div>
+                  {boardMy && (
+                    <p className="mb-3 text-sm">
+                      我的名次: {boardMy.rank ?? "未上榜"}（{boardMy.score} 分）
+                    </p>
+                  )}
+                  {boardLoading ? (
+                    <p className="text-sm text-t3">載入中...</p>
+                  ) : boardRows.length === 0 ? (
+                    <p className="text-sm text-t3">尚無資料</p>
+                  ) : (
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-black">
+                          <th className="py-1 pr-2">#</th>
+                          <th className="py-1 pr-2">名稱</th>
+                          <th className="py-1 pr-2">身分</th>
+                          <th className="py-1 text-right">分數</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {boardRows.map((row) => (
+                          <tr key={`${row.rank}-${row.name}`} className="border-b border-slate-200">
+                            <td className="py-1 pr-2">{row.rank}</td>
+                            <td className="py-1 pr-2">{row.name}</td>
+                            <td className="py-1 pr-2">{row.roleLabel}</td>
+                            <td className="py-1 text-right">{row.score}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            )}
+
             {comboLabel && !finished && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <div className="text-black text-2xl sm:text-4xl font-bold tracking-wider">{comboLabel}</div>
@@ -687,6 +792,13 @@ export default function HomepageCornerWrench() {
                       className="px-4 py-2 rounded border border-black text-black hover:bg-slate-100 cursor-pointer"
                     >
                       再來一局
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleLeaderboard}
+                      className="px-4 py-2 rounded border border-black text-black hover:bg-slate-100 cursor-pointer"
+                    >
+                      排行榜
                     </button>
                     <button
                       type="button"

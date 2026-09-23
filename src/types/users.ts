@@ -40,8 +40,6 @@ export interface BaseUserRecord {
   lockedUntil: number;
   failedAttempts: number;
   createdAt: number;
-  /** 丟扳手小遊戲歷史最高分 */
-  丟板手: number;
 }
 
 export interface StudentRecord extends BaseUserRecord {

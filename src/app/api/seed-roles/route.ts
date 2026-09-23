@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { collection, query, where, getDocs, addDoc, updateDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, addDoc, updateDoc, deleteField } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { hashPassword } from "@/lib/auth";
 import { verifySession } from "@/lib/dal";
@@ -43,7 +43,6 @@ export async function seedRoles() {
       lockedUntil: 0,
       failedAttempts: 0,
       createdAt: now,
-      丟板手: 0,
     };
 
     const created: string[] = [];
@@ -99,7 +98,7 @@ export async function seedRoles() {
       success: true,
       created,
       skipped,
-      backfilled: await backfillWrenchScores(),
+      cleaned: await removeWrenchFieldFromUsers(),
       message: `建立 ${created.length} 筆，略過 ${skipped.length} 筆`,
     });
   } catch (error) {
@@ -108,19 +107,18 @@ export async function seedRoles() {
   }
 }
 
-async function backfillWrenchScores(): Promise<string[]> {
-  const results: string[] = [];
+async function removeWrenchFieldFromUsers(): Promise<number> {
+  let cleaned = 0;
   for (const col of Object.values(ROLE_COLLECTIONS)) {
     const snap = await getDocs(collection(db, col));
     for (const d of snap.docs) {
-      const data = d.data();
-      if (typeof data.丟板手 === "number") continue;
-      const score = 5 + Math.floor(Math.random() * 16);
-      await updateDoc(d.ref, { 丟板手: score });
-      results.push(`${col}: ${score}`);
+      if ("丟板手" in d.data()) {
+        await updateDoc(d.ref, { 丟板手: deleteField() });
+        cleaned += 1;
+      }
     }
   }
-  return results;
+  return cleaned;
 }
 
 export async function GET() {

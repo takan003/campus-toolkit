@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
-import { verifyPassword } from "@/lib/auth";
+import { verifyPassword, hashPassword } from "@/lib/auth";
 import { createSession } from "@/lib/server-session";
 import { logActivity, getClientIp } from "@/lib/audit";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
@@ -10,6 +10,16 @@ import { serverErrorMessage } from "@/lib/api-error";
 
 const LOCK_THRESHOLD = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
+const GENERIC_LOGIN_ERROR = "帳號或密碼錯誤";
+
+// 帳號不存在時也跑一次同成本 bcrypt，消除「有無帳號」的時序差（帳號枚舉）
+let dummyHashPromise: Promise<string> | null = null;
+function getDummyHash(): Promise<string> {
+  if (!dummyHashPromise) {
+    dummyHashPromise = hashPassword("timing-equalization-placeholder", 12);
+  }
+  return dummyHashPromise;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,20 +52,27 @@ export async function POST(request: NextRequest) {
       .get();
 
     if (snapshot.empty) {
+      await verifyPassword(password, await getDummyHash());
       await logActivity({
         action: "login_failed",
         role,
         ip,
         details: `帳號不存在或錯誤：${input}`,
       });
-      return NextResponse.json({ success: false, message: "帳號或密碼錯誤" });
+      return NextResponse.json({ success: false, message: GENERIC_LOGIN_ERROR });
     }
 
     const userDoc = snapshot.docs[0];
     const userData = userDoc.data();
 
-    if (userData.lockedUntil && Date.now() < userData.lockedUntil) {
-      const remainMin = Math.ceil((userData.lockedUntil - Date.now()) / 60000);
+    // 鎖定綁定觸發時的來源 IP：其他 IP 不受鎖定影響，避免跨 IP 鎖號 DoS。
+    // 未記錄 lockIp 的舊資料或無法取得來源 IP 時，維持全域鎖定（fail closed）。
+    const lockedUntil = typeof userData.lockedUntil === "number" ? userData.lockedUntil : 0;
+    const lockIp = typeof userData.lockIp === "string" ? userData.lockIp : "";
+    const lockActive =
+      lockedUntil > Date.now() && (!lockIp || !ip || lockIp === ip);
+
+    if (lockActive) {
       await logActivity({
         userId: userDoc.id,
         role,
@@ -63,10 +80,8 @@ export async function POST(request: NextRequest) {
         ip,
         details: "帳號已鎖定期間嘗試登入",
       });
-      return NextResponse.json({
-        success: false,
-        message: `帳號已鎖定，請 ${remainMin} 分鐘後再試`,
-      });
+      // 回覆與一般失敗相同，不證實帳號是否存在、也不透露鎖定狀態
+      return NextResponse.json({ success: false, message: GENERIC_LOGIN_ERROR });
     }
 
     const isValid = await verifyPassword(password, userData.passwordHash);
@@ -78,6 +93,7 @@ export async function POST(request: NextRequest) {
       await userDoc.ref.update({
         failedAttempts: newFailCount,
         lockedUntil: lockUntil,
+        ...(lockUntil ? { lockIp: ip } : {}),
       });
 
       await logActivity({
@@ -94,15 +110,12 @@ export async function POST(request: NextRequest) {
           role,
           action: "account_locked",
           ip,
-          details: "連續失敗 5 次，鎖定 15 分鐘",
+          details: `連續失敗 ${LOCK_THRESHOLD} 次，鎖定 15 分鐘（限來源 ${ip || "未知"}）`,
         });
-        return NextResponse.json({
-          success: false,
-          message: "帳號已鎖定，請 15 分鐘後再試",
-        });
+        return NextResponse.json({ success: false, message: GENERIC_LOGIN_ERROR });
       }
 
-      return NextResponse.json({ success: false, message: "帳號或密碼錯誤" });
+      return NextResponse.json({ success: false, message: GENERIC_LOGIN_ERROR });
     }
 
     const now = Date.now();
@@ -114,6 +127,7 @@ export async function POST(request: NextRequest) {
     await userDoc.ref.update({
       failedAttempts: 0,
       lockedUntil: 0,
+      lockIp: "",
       lastLogin: now,
       lastLoginMethod: "password",
       loginCount: (userData.loginCount || 0) + 1,

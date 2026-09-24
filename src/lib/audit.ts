@@ -8,7 +8,9 @@ export type ActivityAction =
   | "logout"
   | "password_changed"
   | "settings_change"
-  | "admin_created";
+  | "admin_created"
+  | "admin_updated"
+  | "admin_deleted";
 
 export interface ActivityEntry {
   userId?: string;
@@ -18,10 +20,26 @@ export interface ActivityEntry {
   details?: string;
 }
 
-export function getClientIp(request: Request): string {
+/**
+ * 取得客戶端 IP。
+ * 不採信 X-Forwarded-For 首段（客戶端可自行偽造）：
+ * 優先使用平台／反向代理覆寫的 x-real-ip，否則取 XFF 最右段（由可信代理追加）。
+ */
+export function getClientIp(request: {
+  headers: { get(name: string): string | null };
+}): string {
+  const real = request.headers.get("x-real-ip");
+  if (real && real.trim()) return real.trim();
+
   const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return request.headers.get("x-real-ip") || "";
+  if (forwarded) {
+    const parts = forwarded
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (parts.length > 0) return parts[parts.length - 1];
+  }
+  return "";
 }
 
 export async function logActivity(entry: ActivityEntry): Promise<void> {

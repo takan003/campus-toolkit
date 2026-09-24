@@ -14,35 +14,86 @@ function requiredRole(pathname: string): string | null {
   return null;
 }
 
+// 依 Next.js CSP 文件於 proxy 產 nonce（script-src 不再放行 unsafe-inline／unsafe-eval）。
+// AdSense 等第三方以 script-src 的 host 來源隔離放行，Next 框架內聯 script 走 nonce。
+function buildContentSecurityPolicy(nonce: string): string {
+  const isDev = process.env.NODE_ENV === "development";
+  const scriptHosts = [
+    "https://pagead2.googlesyndication.com",
+    "https://googleads.g.doubleclick.net",
+    "https://www.googletagmanager.com",
+    "https://apis.google.com",
+    "https://www.gstatic.com",
+    "https://www.google.com",
+  ].join(" ");
+
+  const directives = [
+    "default-src 'self'",
+    // dev 需 'unsafe-eval'（React 偵錯）；production 不放行
+    `script-src 'self' 'nonce-${nonce}'${isDev ? " 'unsafe-eval'" : ""} ${scriptHosts}`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://www.gstatic.com",
+    "img-src 'self' data: blob: https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://www.google.com https://www.gstatic.com https://lh3.googleusercontent.com https://drive.google.com",
+    "font-src 'self' data: https://fonts.gstatic.com https://www.gstatic.com",
+    "connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://www.googleapis.com https://pagead2.googlesyndication.com https://firebaseinstallations.googleapis.com https://*.firebaseapp.com https://*.googleapis.com",
+    "frame-src 'self' https://accounts.google.com https://googleads.g.doubleclick.net https://pagead2.googlesyndication.com https://*.firebaseapp.com https://*.google.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ];
+  return directives.join("; ");
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const role = requiredRole(pathname);
-  if (!role) return NextResponse.next();
 
-  const token = request.cookies.get(SESSION_COOKIE)?.value;
-  if (!token) {
-    return NextResponse.redirect(new URL("/", request.url));
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const csp = buildContentSecurityPolicy(nonce);
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("Content-Security-Policy", csp);
+
+  if (role) {
+    const token = request.cookies.get(SESSION_COOKIE)?.value;
+    if (!token) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    const session = await verifySessionToken(token);
+    if (!session) {
+      const response = NextResponse.redirect(new URL("/", request.url));
+      response.cookies.delete(SESSION_COOKIE);
+      return response;
+    }
+
+    if (!isUserRole(session.role) || session.role !== role) {
+      return NextResponse.redirect(new URL(ROLE_HOME[session.role], request.url));
+    }
   }
 
-  const session = await verifySessionToken(token);
-  if (!session) {
-    const response = NextResponse.redirect(new URL("/", request.url));
-    response.cookies.delete(SESSION_COOKIE);
-    return response;
-  }
-
-  if (!isUserRole(session.role) || session.role !== role) {
-    return NextResponse.redirect(new URL(ROLE_HOME[session.role], request.url));
-  }
-
-  return NextResponse.next();
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+  response.headers.set("Content-Security-Policy", csp);
+  return response;
 }
 
 export const config = {
   matcher: [
-    "/admin/:path*",
-    "/student/:path*",
-    "/parent/:path*",
-    "/staff/:path*",
+    /*
+     * 所有頁面請求皆需帶 CSP nonce（排除 API 與靜態資源）；
+     * 依文件略過 prefetch，避免無謂重產 nonce。
+     */
+    {
+      source: "/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)",
+      missing: [
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "purpose", value: "prefetch" },
+      ],
+    },
   ],
 };

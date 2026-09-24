@@ -45,21 +45,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "新密碼至少 8 碼" });
     }
 
-    const collectionName = ROLE_COLLECTIONS[role];
-    const usersRef = getAdminDb().collection(collectionName);
-    const input = account.toLowerCase().trim();
-    const isEmail = input.includes("@");
-
-    const snapshot = await usersRef
-      .where(isEmail ? "email" : "account", "==", input)
-      .limit(1)
-      .get();
-    if (snapshot.empty) {
+    // 一律以 session.uid 直取自身文件，避免用 body account 查詢命中他人文件（IDOR）
+    const collectionName = ROLE_COLLECTIONS[session.role];
+    const userDoc = await getAdminDb().collection(collectionName).doc(session.uid).get();
+    if (!userDoc.exists) {
       return NextResponse.json({ success: false, message: "帳號不存在" });
     }
 
-    const userDoc = snapshot.docs[0];
-    const userData = userDoc.data();
+    const userData = userDoc.data()!;
 
     const isValid = await verifyPassword(oldPassword, userData.passwordHash);
     if (!isValid) {
@@ -82,6 +75,9 @@ export async function POST(request: NextRequest) {
     await userDoc.ref.update({
       passwordHash,
       tokenVersion: newTokenVersion,
+      failedAttempts: 0,
+      lockedUntil: 0,
+      lockIp: "",
     });
 
     const priorSession = await getSession();

@@ -1,8 +1,10 @@
 import "server-only";
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { getSession, SessionPayload } from "@/lib/server-session";
 import { isJtiRevoked } from "@/lib/revocation";
+import { getClientIp } from "@/lib/audit";
 import { ROLE_COLLECTIONS, UserRole } from "@/types/users";
 
 export async function verifySession(): Promise<SessionPayload | null> {
@@ -22,7 +24,13 @@ export async function verifySession(): Promise<SessionPayload | null> {
     const tokenVersion = typeof data?.tokenVersion === "number" ? data.tokenVersion : 1;
     if (session.tokenVersion !== tokenVersion) return null;
 
-    if (data?.lockedUntil && Date.now() < data.lockedUntil) return null;
+    // 鎖定與登入路由一致：僅當鎖定綁定的來源 IP（或未綁定）命中目前請求才失效
+    const lockedUntil = typeof data?.lockedUntil === "number" ? data.lockedUntil : 0;
+    if (lockedUntil > Date.now()) {
+      const lockIp = typeof data?.lockIp === "string" ? data.lockIp : "";
+      const currentIp = getClientIp({ headers: await headers() });
+      if (!lockIp || !currentIp || lockIp === currentIp) return null;
+    }
 
     return session;
   } catch {

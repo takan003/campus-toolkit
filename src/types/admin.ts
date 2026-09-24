@@ -11,6 +11,7 @@ export interface AdminUser {
   loginCount: number;
   failedAttempts: number;
   lockedUntil: number;
+  lockIp?: string;
   tokenVersion: number;
   createdAt: number;
 }

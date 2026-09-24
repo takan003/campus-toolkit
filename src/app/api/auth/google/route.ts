@@ -74,11 +74,13 @@ export async function POST(request: NextRequest) {
     const userDoc = snapshot.docs[0];
     const userData = userDoc.data();
 
-    if (userData.lockedUntil && Date.now() < userData.lockedUntil) {
-      const remainMin = Math.ceil((userData.lockedUntil - Date.now()) / 60000);
+    // 鎖定綁 IP（與密碼登入一致）：非觸發鎖定之來源不受影響
+    const lockedUntil = typeof userData.lockedUntil === "number" ? userData.lockedUntil : 0;
+    const lockIp = typeof userData.lockIp === "string" ? userData.lockIp : "";
+    if (lockedUntil > Date.now() && (!lockIp || !ip || lockIp === ip)) {
       return NextResponse.json({
         success: false,
-        message: `帳號已鎖定，請 ${remainMin} 分鐘後再試`,
+        message: "登入失敗，請稍後再試",
       });
     }
 
@@ -91,6 +93,7 @@ export async function POST(request: NextRequest) {
     await userDoc.ref.update({
       failedAttempts: 0,
       lockedUntil: 0,
+      lockIp: "",
       lastLogin: now,
       lastLoginMethod: "google",
       loginCount: (userData.loginCount || 0) + 1,

@@ -38,6 +38,8 @@ export interface BaseUserRecord {
   cssThemeId: string;
   installedThemes: string;
   lockedUntil: number;
+  /** 觸發鎖定時的來源 IP（綁定鎖定，防跨 IP 鎖號 DoS） */
+  lockIp?: string;
   failedAttempts: number;
   createdAt: number;
 }

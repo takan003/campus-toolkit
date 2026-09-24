@@ -4,11 +4,15 @@ import { getClientIp } from "@/lib/audit";
 
 /**
  * 進程內 sliding-window rate limiter。
- * 注意：serverless 冷卻會重置計數，屬簡易防護；若需跨實例請改用 Upstash 等外部方案。
+ * 注意：serverless 冷卻或多實例會重置／分割計數，屬簡易防護；
+ * 若需跨實例請改用 Upstash 等外部儲存。以下至少確保：
+ * ① IP 來源不信可偽造的 XFF 首段（見 audit.ts getClientIp）
+ * ② 桶滿時逐筆淘汰最久未使用，絕不整表清空（避免登入等限流被重置）
  */
 
 interface Bucket {
   hits: number[];
+  lastSeen: number;
 }
 
 const buckets = new Map<string, Bucket>();
@@ -23,8 +27,14 @@ function pruneAll(now: number): void {
   for (const [key, bucket] of buckets) {
     if (bucket.hits.length === 0) buckets.delete(key);
   }
-  if (buckets.size >= MAX_BUCKETS) {
-    buckets.clear();
+  if (buckets.size < MAX_BUCKETS) return;
+  // 仍滿：只淘汰最久未使用的個別桶，禁止 buckets.clear() 全清
+  const overflow = buckets.size - MAX_BUCKETS + 1;
+  const byOldest = [...buckets.entries()].sort(
+    (a, b) => a[1].lastSeen - b[1].lastSeen
+  );
+  for (let i = 0; i < overflow && i < byOldest.length; i += 1) {
+    buckets.delete(byOldest[i][0]);
   }
 }
 
@@ -44,10 +54,11 @@ export function checkRateLimit(
 
   let bucket = buckets.get(key);
   if (!bucket) {
-    bucket = { hits: [] };
+    bucket = { hits: [], lastSeen: now };
     buckets.set(key, bucket);
   }
   prune(bucket, now, windowMs);
+  bucket.lastSeen = now;
 
   if (bucket.hits.length >= limit) {
     const oldest = bucket.hits[0];
@@ -103,6 +114,8 @@ export const RATE = {
   GOOGLE: { limit: 10, windowMs: 60_000 },
   CHANGE_PASSWORD: { limit: 10, windowMs: 60_000 },
   ADMIN_CREATE: { limit: 5, windowMs: 60 * 60_000 },
+  ADMIN_MUTATE: { limit: 10, windowMs: 60 * 60_000 },
   SEED_ROLES: { limit: 5, windowMs: 60 * 60_000 },
+  LEADERBOARD_GET: { limit: 60, windowMs: 60_000 },
   LEADERBOARD_POST: { limit: 20, windowMs: 60_000 },
 } as const;

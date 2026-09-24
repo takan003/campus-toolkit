@@ -9,6 +9,7 @@ import { serverErrorMessage } from "@/lib/api-error";
 
 const COLLECTION = "wrenchLeaderboard";
 const TOP_N = 100;
+const MAX_SCORE = 1_000_000;
 
 export interface LeaderboardEntry {
   uid: string;
@@ -28,11 +29,20 @@ function formatRecordDate(ms: number): string {
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const limited = enforceRateLimit(
+      request,
+      "leaderboard-get",
+      RATE.LEADERBOARD_GET.limit,
+      RATE.LEADERBOARD_GET.windowMs
+    );
+    if (limited) return limited;
+
     const col = getAdminDb().collection(COLLECTION);
     const topSnap = await col.orderBy("score", "desc").limit(TOP_N).get();
 
+    // 公開榜單不回傳 uid（僅伺服器端用來計算我的名次）
     const top = topSnap.docs.map((d, index) => {
       const data = d.data() as LeaderboardEntry;
       return {
@@ -41,7 +51,6 @@ export async function GET() {
         role: data.role,
         roleLabel: ROLE_LABELS[data.role] ?? data.role,
         score: Number(data.score) || 0,
-        uid: data.uid,
         recordDate: formatRecordDate(Number(data.updatedAt) || 0),
       };
     });
@@ -60,7 +69,9 @@ export async function GET() {
       const mineSnap = await col.where("uid", "==", session.uid).limit(1).get();
       if (!mineSnap.empty) {
         const data = mineSnap.docs[0].data() as LeaderboardEntry;
-        const rankIndex = top.findIndex((e) => e.uid === session.uid);
+        const rankIndex = topSnap.docs.findIndex(
+          (d) => (d.data() as LeaderboardEntry).uid === session.uid
+        );
         my = {
           name: data.name,
           role: data.role,
@@ -99,7 +110,12 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => null);
   const raw = body?.score;
-  if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 0) {
+  if (
+    typeof raw !== "number" ||
+    !Number.isFinite(raw) ||
+    raw < 0 ||
+    raw > MAX_SCORE
+  ) {
     return NextResponse.json({ success: false, message: "分數無效" }, { status: 400 });
   }
   const newScore = Math.floor(raw);
@@ -149,10 +165,14 @@ export async function POST(request: NextRequest) {
       await col.add(payload);
     }
 
-    const allSnap = await col.orderBy("score", "desc").get();
-    if (allSnap.size > TOP_N) {
-      const excess = allSnap.docs.slice(TOP_N);
-      await Promise.all(excess.map((d) => d.ref.delete()));
+    // 清理：用 offset 只取前 100 名之後的文件（不整表撈回全部欄位）
+    const excessSnap = await col
+      .orderBy("score", "desc")
+      .offset(TOP_N)
+      .select("score")
+      .get();
+    if (!excessSnap.empty) {
+      await Promise.all(excessSnap.docs.map((d) => d.ref.delete()));
     }
 
     const refreshed = await col.orderBy("score", "desc").limit(TOP_N).get();

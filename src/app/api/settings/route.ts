@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
-import { requireRole, toAuthResponse } from "@/lib/dal";
+import { requireRole, toAuthResponse, verifySession } from "@/lib/dal";
 import { assertSameOrigin } from "@/lib/csrf";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { getClientIp, logActivity } from "@/lib/audit";
@@ -9,6 +9,29 @@ import { serverErrorMessage } from "@/lib/api-error";
 
 const SETTINGS_DOC = { collection: "settings", id: "system" };
 const MAX_SETTINGS = 200_000;
+
+// 公開 GET 只回傳展示用白名單欄位；
+// contactPerson／contactEmail／oauthClientId／passwordCostFactor 等僅 admin 完整可見
+const PUBLIC_SETTINGS_KEYS: (keyof Settings)[] = [
+  "systemEnabled",
+  "systemName",
+  "schoolFullName",
+  "schoolShortName",
+  "schoolOtherNames",
+  "academicYear",
+  "cssThemeId",
+  "copyrightNotice",
+  "sponsorAdEnabled",
+  "sessionTimeout",
+];
+
+function pickPublicSettings(settings: Settings): Partial<Settings> {
+  const out: Record<string, unknown> = {};
+  for (const key of PUBLIC_SETTINGS_KEYS) {
+    out[key] = settings[key];
+  }
+  return out as Partial<Settings>;
+}
 
 function pickSettings(raw: Record<string, unknown>): Settings {
   const out: Record<string, unknown> = { ...defaultSettings };
@@ -31,17 +54,24 @@ function pickSettings(raw: Record<string, unknown>): Settings {
 
 export async function GET() {
   try {
+    const session = await verifySession();
+    const isAdmin = session?.role === "admin";
+
     const snap = await getAdminDb()
       .collection(SETTINGS_DOC.collection)
       .doc(SETTINGS_DOC.id)
       .get();
     const data = snap.exists ? (snap.data() as Record<string, unknown>) : {};
     const settings = pickSettings(data ?? {});
-    return NextResponse.json({ success: true, settings });
+    return NextResponse.json({
+      success: true,
+      settings: isAdmin ? settings : pickPublicSettings(settings),
+    });
   } catch {
-    return NextResponse.json(
-      { success: true, settings: defaultSettings }
-    );
+    return NextResponse.json({
+      success: true,
+      settings: pickPublicSettings(defaultSettings),
+    });
   }
 }
 

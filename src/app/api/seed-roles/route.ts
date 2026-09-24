@@ -140,15 +140,8 @@ async function removeWrenchFieldFromUsers(): Promise<number> {
   return cleaned;
 }
 
-export async function GET(request: NextRequest) {
-  const limited = enforceRateLimit(request, "seed-roles", RATE.SEED_ROLES.limit, RATE.SEED_ROLES.windowMs);
-  if (limited) return limited;
-  const session = await verifySession();
-  if (!session) return unauthorized();
-  if (session.role !== "admin") return forbidden();
-  return seedRoles();
-}
-
+// 僅接受 POST：GET 是安全動詞，sameSite=lax 下頂層導航跨站 GET 會帶 cookie，
+// 若開放 GET 將可被誘導連結觸發寫入（CSRF），故不提供 GET handler。
 export async function POST(request: NextRequest) {
   const originDenied = assertSameOrigin(request);
   if (originDenied) return originDenied;

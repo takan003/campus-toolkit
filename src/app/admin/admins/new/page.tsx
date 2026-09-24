@@ -28,8 +28,8 @@ export default function NewAdminPage() {
       return;
     }
 
-    if (password.length < 6) {
-      setError("密碼至少 6 個字元");
+    if (password.length < 8) {
+      setError("密碼至少 8 個字元");
       return;
     }
 

@@ -6,7 +6,11 @@ interface CopyrightProps {
   mode: string;
 }
 
-const versionText = `Version ${versionData.version} on ${versionData.date.replace(/-/g, ".")}`;
+// production 不對外揭露精確版本／建置日期（避免幫攻擊者辨識版本）
+const isProd = process.env.NODE_ENV === "production";
+const versionText = isProd
+  ? ""
+  : `Version ${versionData.version} on ${versionData.date.replace(/-/g, ".")}`;
 
 export default function Copyright({ mode }: CopyrightProps) {
   if (mode === "關閉") {
@@ -35,7 +39,7 @@ function CopyrightFull() {
               />
             </td>
             <td style={{ borderBottom: "none", padding: "0", border: "none" }}>
-      <div>{versionText}</div>
+      {versionText && <div>{versionText}</div>}
       <div>Powered by Next.js on Vercel</div>
               <div className="flex items-center justify-center gap-2 my-1 flex-wrap">
                 {/* Donate */}
@@ -149,7 +153,7 @@ function CopyrightSimple() {
   return (
     <div className="text-center text-sm py-4">
       <div>Powered By Google</div>
-      <div>數位校園工具箱 {versionText}</div>
+      <div>數位校園工具箱{versionText ? ` ${versionText}` : ""}</div>
       <div className="flex items-center justify-center gap-2 mt-1">
         <span>Chang, Chia-Cheng 張家誠</span>
         <a

@@ -5,7 +5,7 @@ import { requireRole, toAuthResponse } from "@/lib/dal";
 import { logActivity, getClientIp } from "@/lib/audit";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { assertSameOrigin } from "@/lib/csrf";
-import { clampCostFactor, normalizeEmail, normalizeAccount, isStrongPassword } from "@/lib/validation";
+import { normalizeEmail, normalizeAccount, isStrongPassword } from "@/lib/validation";
 import { serverErrorMessage } from "@/lib/api-error";
 
 /** 供 /setup 判斷是否仍可建立首任管理員（不揭露環境變數名稱） */
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       session = s;
     }
 
-    const { email, account, password, displayName, costFactor } = await request.json();
+    const { email, account, password, displayName } = await request.json();
 
     const normEmail = normalizeEmail(email);
     const normAccount = normalizeAccount(account);
@@ -75,7 +75,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "此帳號已被使用" });
     }
 
-    const passwordHash = await hashPassword(password, clampCostFactor(costFactor, 12));
+    // costFactor 不接受 request body 指定：固定使用預設 12，避免被降為弱成本雜湊
+    const passwordHash = await hashPassword(password);
 
     const newAdmin = {
       email: normEmail,

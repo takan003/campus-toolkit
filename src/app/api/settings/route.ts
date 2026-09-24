@@ -6,12 +6,13 @@ import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { getClientIp, logActivity } from "@/lib/audit";
 import { Settings, defaultSettings } from "@/types/settings";
 import { serverErrorMessage } from "@/lib/api-error";
+import { invalidateSettingsCache } from "@/lib/settings-server";
 
 const SETTINGS_DOC = { collection: "settings", id: "system" };
 const MAX_SETTINGS = 200_000;
 
 // 公開 GET 只回傳展示用白名單欄位；
-// contactPerson／contactEmail／oauthClientId／passwordCostFactor 等僅 admin 完整可見
+// contactPerson／contactEmail／oauthClientId 等僅 admin 完整可見
 const PUBLIC_SETTINGS_KEYS: (keyof Settings)[] = [
   "systemEnabled",
   "systemName",
@@ -102,13 +103,12 @@ export async function PUT(request: NextRequest) {
 
     const settings = pickSettings(body);
     if (settings.sessionTimeout < 1) settings.sessionTimeout = 1;
-    if (settings.passwordCostFactor < 1) settings.passwordCostFactor = 1;
-    if (settings.passwordCostFactor > 99) settings.passwordCostFactor = 99;
 
     await getAdminDb()
       .collection(SETTINGS_DOC.collection)
       .doc(SETTINGS_DOC.id)
       .set(settings, { merge: true });
+    invalidateSettingsCache();
 
     await logActivity({
       userId: session.uid,

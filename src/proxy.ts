@@ -56,6 +56,9 @@ export async function proxy(request: NextRequest) {
   requestHeaders.set("Content-Security-Policy", csp);
 
   if (role) {
+    // 快取層／導覽檢查：此處只驗 JWT 簽章、有效期與角色，刻意不查 DB
+    // （撤銷 jti、tokenVersion、閒置逾時）。頁面資料請一律走 dal.verifySession，
+    // 由那裡做完整的權威驗證；本檢查僅用於避免未登入者看到受保護頁面殼。
     const token = request.cookies.get(SESSION_COOKIE)?.value;
     if (!token) {
       return NextResponse.redirect(new URL("/", request.url));

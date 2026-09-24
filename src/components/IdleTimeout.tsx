@@ -7,6 +7,8 @@ import { getCachedSession, fetchSession, logout as clearSession } from "@/lib/se
 
 const WARNING_SECONDS = 30;
 const TICK_MS = 1000;
+// 使用者有活動時，最慢每 30 秒向伺服器續期一次 lastActivityAt（伺服器端閒置逾時）
+const PING_INTERVAL_MS = 30_000;
 const ACTIVITY_EVENTS = [
   "mousedown",
   "mousemove",
@@ -24,6 +26,9 @@ export default function IdleTimeout() {
   const lastActivityRef = useRef(Date.now());
   const warnedRef = useRef(false);
   const hadSessionRef = useRef(false);
+  const dirtyRef = useRef(false);
+  const lastPingRef = useRef(Date.now());
+  const pingingRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +56,7 @@ export default function IdleTimeout() {
   const resetIdle = useCallback(() => {
     lastActivityRef.current = Date.now();
     warnedRef.current = false;
+    dirtyRef.current = true;
     setShowWarning(false);
     setRemaining(WARNING_SECONDS);
   }, []);
@@ -59,9 +65,36 @@ export default function IdleTimeout() {
     void clearSession();
     warnedRef.current = false;
     hadSessionRef.current = false;
+    dirtyRef.current = false;
     setShowWarning(false);
     router.push("/");
   }, [router]);
+
+  // 節流呼叫 keepalive：滑動更新伺服器 JWT lastActivityAt；回 401 代表伺服器已判定逾時
+  const pingKeepalive = useCallback(async () => {
+    if (pingingRef.current || !dirtyRef.current) return;
+    if (Date.now() - lastPingRef.current < PING_INTERVAL_MS) return;
+    pingingRef.current = true;
+    try {
+      const res = await fetch("/api/auth/keepalive", {
+        method: "POST",
+        cache: "no-store",
+      });
+      if (res.ok) {
+        dirtyRef.current = false;
+        lastPingRef.current = Date.now();
+      } else if (res.status === 401) {
+        logout();
+      } else {
+        // 暫緩重試避免風暴；保持 dirty 讓下次排程再試
+        lastPingRef.current = Date.now();
+      }
+    } catch {
+      lastPingRef.current = Date.now();
+    } finally {
+      pingingRef.current = false;
+    }
+  }, [logout]);
 
   useEffect(() => {
     void fetchSession();
@@ -72,6 +105,7 @@ export default function IdleTimeout() {
       if (warnedRef.current) return;
       if (!getCachedSession()) return;
       lastActivityRef.current = Date.now();
+      dirtyRef.current = true;
     }
 
     ACTIVITY_EVENTS.forEach((eventName) => {
@@ -85,6 +119,7 @@ export default function IdleTimeout() {
         if (hadSessionRef.current) {
           hadSessionRef.current = false;
           warnedRef.current = false;
+          dirtyRef.current = false;
           setShowWarning(false);
         }
         return;
@@ -94,9 +129,13 @@ export default function IdleTimeout() {
         hadSessionRef.current = true;
         lastActivityRef.current = Date.now();
         warnedRef.current = false;
+        dirtyRef.current = false;
+        lastPingRef.current = Date.now();
         setShowWarning(false);
         return;
       }
+
+      void pingKeepalive();
 
       const timeoutMs = timeoutMinutes * 60 * 1000;
       const remainMs = timeoutMs - (Date.now() - lastActivityRef.current);
@@ -105,6 +144,7 @@ export default function IdleTimeout() {
         void clearSession();
         hadSessionRef.current = false;
         warnedRef.current = false;
+        dirtyRef.current = false;
         setShowWarning(false);
         router.push("/");
         return;
@@ -125,7 +165,7 @@ export default function IdleTimeout() {
       });
       window.clearInterval(timer);
     };
-  }, [router, timeoutMinutes]);
+  }, [router, timeoutMinutes, pingKeepalive]);
 
   if (!showWarning) return null;
 

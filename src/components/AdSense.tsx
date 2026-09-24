@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import Script from "next/script";
 
 declare global {
   interface Window {
     adsbygoogle: unknown[];
   }
 }
+
+const ADSENSE_SRC =
+  "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6708300535856225";
 
 export default function AdSense() {
   const bannerRef = useRef<HTMLModElement>(null);
@@ -27,6 +31,13 @@ export default function AdSense() {
 
   return (
     <div className="text-center py-4">
+      {/* 僅本元件掛載時（sponsorAdEnabled）才載入 AdSense script；lazyOnload 延後至頁面載完。
+          CSP script-src 已放行 pagead2.googlesyndication.com host，不依賴 nonce。 */}
+      <Script
+        src={ADSENSE_SRC}
+        strategy="lazyOnload"
+        crossOrigin="anonymous"
+      />
       <p className="text-sm text-t3 mb-2">&gt;&gt;以下廣告由Google AdSense推播&lt;&lt;</p>
 
       {/* 橫幅廣告 320x50 */}

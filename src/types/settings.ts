@@ -12,7 +12,6 @@ export interface Settings {
   oauthClientId: string;
   totpEnabled: boolean;
   twoFactorEnabled: boolean;
-  passwordCostFactor: number;
   sessionTimeout: number;
   cssThemeId: string; // Admin 強制主題
   copyrightNotice: boolean;
@@ -33,7 +32,6 @@ export const defaultSettings: Settings = {
   oauthClientId: "",
   totpEnabled: false,
   twoFactorEnabled: true,
-  passwordCostFactor: 5,
   sessionTimeout: 10,
   cssThemeId: "",
   copyrightNotice: true,

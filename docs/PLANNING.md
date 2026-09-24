@@ -209,7 +209,6 @@ interface Settings {
   totpEnabled: boolean;
   workspaceLoginEnabled: boolean;
   twoFactorEnabled: boolean;
-  passwordCostFactor: number;  // PBKDF2 迭代次數（千次）
   sessionTimeout: number;      // 閒置逾時（分鐘）
   cssThemeId: string;          // Admin 強制主題
   

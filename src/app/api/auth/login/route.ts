@@ -33,11 +33,14 @@ export async function POST(request: NextRequest) {
     const ip = getClientIp(request);
 
     if (!account || !password) {
-      return NextResponse.json({ success: false, message: "請輸入帳號與密碼" });
+      return NextResponse.json(
+        { success: false, message: "請輸入帳號與密碼" },
+        { status: 400 }
+      );
     }
 
     if (!isUserRole(role)) {
-      return NextResponse.json({ success: false, message: "請選擇身分" });
+      return NextResponse.json({ success: false, message: "請選擇身分" }, { status: 400 });
     }
 
     const collectionName = ROLE_COLLECTIONS[role];
@@ -59,7 +62,11 @@ export async function POST(request: NextRequest) {
         ip,
         details: `帳號不存在或錯誤：${input}`,
       });
-      return NextResponse.json({ success: false, message: GENERIC_LOGIN_ERROR });
+      // 401 + 通用訊息：不證實帳號是否存在（防枚舉）
+      return NextResponse.json(
+        { success: false, message: GENERIC_LOGIN_ERROR },
+        { status: 401 }
+      );
     }
 
     const userDoc = snapshot.docs[0];
@@ -81,7 +88,10 @@ export async function POST(request: NextRequest) {
         details: "帳號已鎖定期間嘗試登入",
       });
       // 回覆與一般失敗相同，不證實帳號是否存在、也不透露鎖定狀態
-      return NextResponse.json({ success: false, message: GENERIC_LOGIN_ERROR });
+      return NextResponse.json(
+        { success: false, message: GENERIC_LOGIN_ERROR },
+        { status: 401 }
+      );
     }
 
     const isValid = await verifyPassword(password, userData.passwordHash);
@@ -112,10 +122,16 @@ export async function POST(request: NextRequest) {
           ip,
           details: `連續失敗 ${LOCK_THRESHOLD} 次，鎖定 15 分鐘（限來源 ${ip || "未知"}）`,
         });
-        return NextResponse.json({ success: false, message: GENERIC_LOGIN_ERROR });
+        return NextResponse.json(
+          { success: false, message: GENERIC_LOGIN_ERROR },
+          { status: 401 }
+        );
       }
 
-      return NextResponse.json({ success: false, message: GENERIC_LOGIN_ERROR });
+      return NextResponse.json(
+        { success: false, message: GENERIC_LOGIN_ERROR },
+        { status: 401 }
+      );
     }
 
     const now = Date.now();

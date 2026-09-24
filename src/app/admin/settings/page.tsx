@@ -104,7 +104,6 @@ const settingGroups: SettingGroup[] = [
           { value: "false", label: "停用" },
         ],
       },
-      { id: "passwordCostFactor", label: "密碼雜湊迭代次數（千次）", type: "number" },
       {
         id: "sessionTimeout",
         label: "閒置逾時（分鐘）",
@@ -246,14 +245,13 @@ export default function SettingsPage() {
       "copyrightNotice", "sponsorAdEnabled",
     ];
     const numberFields: (keyof Settings)[] = [
-      "academicYear", "passwordCostFactor", "sessionTimeout",
+      "academicYear", "sessionTimeout",
     ];
 
     if (booleanFields.includes(id)) {
       setSettings({ ...settings, [id]: value === "true" });
     } else if (numberFields.includes(id)) {
       let numVal = Number(value);
-      if (id === "passwordCostFactor") numVal = Math.min(99, Math.max(1, numVal));
       if (id === "sessionTimeout") numVal = Math.max(1, numVal);
       setSettings({ ...settings, [id]: numVal });
     } else {

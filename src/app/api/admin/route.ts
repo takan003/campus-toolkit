@@ -5,7 +5,7 @@ import { requireRole, toAuthResponse } from "@/lib/dal";
 import { assertSameOrigin } from "@/lib/csrf";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { logActivity, getClientIp } from "@/lib/audit";
-import { clampCostFactor, normalizeEmail, normalizeAccount, isStrongPassword } from "@/lib/validation";
+import { normalizeEmail, normalizeAccount, isStrongPassword } from "@/lib/validation";
 import { serverErrorMessage } from "@/lib/api-error";
 
 async function requireAdmin() {
@@ -58,7 +58,7 @@ export async function PUT(request: NextRequest) {
     const { session, denial } = await requireRole("admin");
     if (denial) return toAuthResponse(denial);
 
-    const { uid, email, account, displayName, password, costFactor } = await request.json();
+    const { uid, email, account, displayName, password } = await request.json();
 
     if (!uid || typeof uid !== "string") {
       return NextResponse.json({ success: false, message: "缺少管理員 ID" });
@@ -72,14 +72,25 @@ export async function PUT(request: NextRequest) {
     const target = adminSnap.data();
 
     const updateData: Record<string, unknown> = {};
+    const adminsRef = getAdminDb().collection("admins");
     if (email !== undefined) {
       const normEmail = normalizeEmail(email);
       if (!normEmail) return NextResponse.json({ success: false, message: "電子郵件格式無效" });
+      // 查重（排除自身），與 create 流程一致
+      const dupEmail = await adminsRef.where("email", "==", normEmail).limit(1).get();
+      if (!dupEmail.empty && dupEmail.docs[0].id !== uid) {
+        return NextResponse.json({ success: false, message: "此電子郵件已被使用" });
+      }
       updateData.email = normEmail;
     }
     if (account !== undefined) {
       const normAccount = normalizeAccount(account);
       if (!normAccount) return NextResponse.json({ success: false, message: "帳號格式無效" });
+      // 查重（排除自身），與 create 流程一致
+      const dupAccount = await adminsRef.where("account", "==", normAccount).limit(1).get();
+      if (!dupAccount.empty && dupAccount.docs[0].id !== uid) {
+        return NextResponse.json({ success: false, message: "此帳號已被使用" });
+      }
       updateData.account = normAccount;
     }
     if (displayName !== undefined) {
@@ -90,7 +101,8 @@ export async function PUT(request: NextRequest) {
       if (!isStrongPassword(password)) {
         return NextResponse.json({ success: false, message: "密碼至少 8 碼" });
       }
-      updateData.passwordHash = await hashPassword(password, clampCostFactor(costFactor, 12));
+      // costFactor 不接受 request body 指定：固定使用預設 12
+      updateData.passwordHash = await hashPassword(password);
       // 重設他人密碼必須失效該帳號現有的所有 JWT
       const currentVersion =
         typeof target?.tokenVersion === "number" ? target.tokenVersion : 1;

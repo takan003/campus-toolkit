@@ -11,7 +11,7 @@
   },
   "keywords": [],
   "author": "takan003",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "@types/bcryptjs": "^2.4.6",

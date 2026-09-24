@@ -1,44 +1,154 @@
 # 數位校園工具箱
 
-整合校園資訊、選課、公告、社團等功能的綜合性校園工具平台。
+整合校園資訊、身分入口與管理功能的校園工具平台。以角色（學生／家長／教職員／管理員）分流首頁，支援帳號密碼與 Google 登入、CSS 主題切換、管理後台與排行榜等。
+
+歡迎感興趣的使用者 fork 自架。請先完成下方「環境變數」與「首次啟動」流程，缺金鑰無法運作。
 
 ## 技術架構
 
-- **前端框架**: Next.js 14+（App Router）
-- **開發語言**: TypeScript
-- **樣式方案**: Tailwind CSS
-- **認證服務**: Firebase Authentication
-- **資料庫**: Cloud Firestore
-- **檔案儲存**: Firebase Cloud Storage
-- **部署平台**: Vercel
+| 項目 | 技術 |
+|------|------|
+| 前端框架 | Next.js 16+（App Router） |
+| 語言 | TypeScript |
+| 樣式 | Tailwind CSS 4 |
+| 認證 | Firebase Authentication（Google）＋ 自建帳號密碼（bcrypt） |
+| 資料庫 | Cloud Firestore（一律由伺服端 Admin SDK 存取） |
+| Session | JWT（`jose`，HS256）＋ HttpOnly Cookie |
+| 部署 | Vercel（本機亦可 `next start`） |
+
+## 需求
+
+- Node.js 20+（建議 LTS）
+- npm
+- 一組自己的 [Firebase](https://console.firebase.google.com/) 專案
+- （上線）Vercel 帳號
 
 ## 快速開始
 
 ```bash
-# 安裝依賴
+# 1. 安裝依賴
 npm install
 
-# 設定環境變數
+# 2. 建立環境變數
 cp .env.example .env.local
-# 編輯 .env.local 填入 Firebase 設定
+# 編輯 .env.local，欄位說明見下一節
 
-# 啟動開發伺服器
+# 3. 啟動開發伺服器
 npm run dev
 ```
+
+瀏覽器開啟 `http://localhost:3000`。金鑰齊全前，登入與後台 API 會失敗，屬預期行為。
+
+## 環境變數
+
+完整欄位請對照 [`.env.example`](.env.example)。複製到 `.env.local`（或 `.env`）後填入：
+
+### Firebase 前端設定（公開設定，會出現在瀏覽器）
+
+於 Firebase Console → 專案設定 → 你的 Web 應用程式取得：
+
+| 變數 | 說明 |
+|------|------|
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | Web API Key |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | 例如 `your-project.firebaseapp.com` |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | 專案 ID |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | 例如 `your-project.appspot.com` |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | Sender ID |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | Web App ID |
+
+### 伺服端機密（切勿提交到 Git、切勿加上 `NEXT_PUBLIC_` 前綴）
+
+| 變數 | 必填 | 說明 |
+|------|------|------|
+| `SESSION_SECRET` | 是 | 簽 session JWT 用，**至少 32 字元**。可用 `openssl rand -base64 32` 產生 |
+| `FIREBASE_SERVICE_ACCOUNT_KEY` | 是 | Firebase 服務帳號金鑰。Console → 專案設定 → 服務帳號 → 產生新的私鑰；可貼**整段 JSON 字串**或其 **base64** |
+| `ALLOW_BOOTSTRAP_ADMIN` | 首次啟動 | 僅在建立「第一個管理員」時設為 `true`，建完請改回 `false` |
+| `SEED_ACCOUNT` / `SEED_EMAIL` / `SEED_PASSWORD` | 選用 | 種子角色帳號；缺任一項則種子 API 拒絕執行 |
+
+## Firebase 專案設定
+
+1. **建立專案**：Firebase Console 新增專案（Analytics 可關）。
+2. **啟用 Google 登入**：Authentication → Sign-in method → 啟用 **Google**。
+3. **建立 Web 應用程式**：專案設定 → 一般 → 新增 Web 應用，將設定貼入 `.env.local` 的 `NEXT_PUBLIC_*`。
+4. **服務帳號金鑰**：專案設定 → 服務帳號 → 產生新的私鑰（下載 JSON），整段貼入 `FIREBASE_SERVICE_ACCOUNT_KEY`（或先 base64 編碼再貼）。
+5. **部署 Firestore 規則**：本 repo 的 [`firestore.rules`](firestore.rules) 預設**拒絕所有客戶端讀寫**（資料只走伺服端 Admin SDK），請部署：
+
+   ```bash
+   firebase deploy --only firestore:rules
+   ```
+
+   或在 Firebase Console → Firestore → 規則 貼上相同內容後發布。
+
+## 首次啟動（建立管理員）
+
+1. 確認 `.env.local` 已設 `ALLOW_BOOTSTRAP_ADMIN=true`，且 `SESSION_SECRET`、`FIREBASE_SERVICE_ACCOUNT_KEY` 已填。
+2. 啟動 `npm run dev`，開啟 **`/setup`**，建立第一個管理員帳號（密碼至少 8 碼）。
+3. 成功後登入首頁，再把 `ALLOW_BOOTSTRAP_ADMIN` 改為 `false`（或移除）並重啟，避免資料庫被清空後可免驗證建管。
+
+### （選用）種子角色資料
+
+以**管理員**登入後，於環境變數填好 `SEED_*` 三項，對已部署網址請求：
+
+```http
+GET /api/seed-roles
+```
+
+會依種子帳號建立學生／家長／教職員範本資料（已存在之帳號會跳過）。僅 admin session 可呼叫，並有速率限制。
+
+## 常用指令
+
+| 指令 | 說明 |
+|------|------|
+| `npm run dev` | 開發伺服器（會先更新 `src/version.json`） |
+| `npm run build` | 生產建置 |
+| `npm start` | 執行生產建置 |
+| `npm run lint` | Lint |
 
 ## 專案結構
 
 ```
-數位校園共享站/
-├── public/              # 靜態資源
+campus-toolkit/
+├── public/                 # 靜態資源（含 ads.txt）
+├── scripts/
+│   └── version.js          # 依 git commit 數更新 version.json
 ├── src/
-│   ├── app/             # Next.js App Router
-│   ├── components/      # 可重用元件
-│   ├── lib/             # 工具函式與設定
-│   ├── hooks/           # 自訂 React Hooks
-│   ├── contexts/        # React Context
-│   ├── types/           # TypeScript 型別定義
-│   └── styles/          # 全局樣式
-├── middleware.ts         # Next.js 中間件
-└── package.json
+│   ├── app/                # App Router 頁面與 API
+│   │   ├── api/            # REST API（auth、admin、seed、排行榜…）
+│   │   ├── admin/          # 管理後台
+│   │   ├── student|parent|staff/  # 各角色首頁與帳號頁
+│   │   └── setup/          # 首次建立管理員
+│   ├── components/         # UI 元件
+│   ├── contexts/           # React Context（主題等）
+│   ├── lib/                # Firebase、session、驗證、rate limit…
+│   ├── styles/             # 全域樣式與主題 CSS 變數
+│   ├── types/              # TypeScript 型別
+│   └── proxy.ts            # 路由保護（角色頁 Session 檢查）
+├── docs/                   # 規劃與規格文件
+├── firestore.rules         # Firestore 安全規則（預設全拒絕）
+├── next.config.ts          # CSP／安全標頭等
+└── .env.example            # 環境變數範本
 ```
+
+## 部署（Vercel）
+
+1. Import Git Repo 至 Vercel。
+2. 在專案 **Environment Variables** 加入與 `.env.local` 相同的變數（機密變數勿用 `NEXT_PUBLIC_`）。
+3. Deploy。Framework 預設 Next.js 即可。
+4. 上線後網域會自動出現在 Firebase Authentication → 設定 → **授權的網域**；若用自訂網域登入失敗，請在此補上。
+
+## 安全注意事項
+
+- **`.env`、`.env.local`、服務帳號 JSON 一律已被 `.gitignore` 排除，請勿強制加入版本庫。**
+- 機密只放本機環境變數與 Vercel 環境變數。
+- `FIREBASE_SERVICE_ACCOUNT_KEY`、`SESSION_SECRET` 洩漏時請立刻於 Firebase 重產生私鑰並更換 session secret（所有 session 會失效）。
+- Firestore 規則維持伺服端全權管理；勿對客戶端開放讀寫，除非你清楚資料面風險。
+- 管理員首任建立後務必關閉 `ALLOW_BOOTSTRAP_ADMIN`。
+
+## 文件
+
+- [`docs/PLANNING.md`](docs/PLANNING.md) — 主題與資安規劃
+- [`docs/`](docs/) — 網站規劃、主程式／模組架構與資安規格書
+
+## 授權
+
+[MIT](LICENSE)

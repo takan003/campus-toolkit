@@ -4,8 +4,11 @@ import { createSession } from "@/lib/server-session";
 import { logActivity, getClientIp } from "@/lib/audit";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { assertSameOrigin } from "@/lib/csrf";
+import { isSystemEnabled } from "@/lib/settings-server";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 import { serverErrorMessage } from "@/lib/api-error";
+
+const GENERIC_LOGIN_ERROR = "登入失敗，請稍後再試";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +23,14 @@ export async function POST(request: NextRequest) {
 
     if (!idToken || !isUserRole(role)) {
       return NextResponse.json({ success: false, message: "參數錯誤" }, { status: 400 });
+    }
+
+    // 系統停用時僅允許管理員登入（以便重新啟用）
+    if (role !== "admin" && !(await isSystemEnabled())) {
+      return NextResponse.json(
+        { success: false, message: "系統目前暫停服務，請稍後再試" },
+        { status: 503 }
+      );
     }
 
     // 本機驗證 Firebase ID token（signInWithPopup 產生），不打 identitytoolkit
@@ -65,23 +76,30 @@ export async function POST(request: NextRequest) {
         ip,
         details: `Google 帳號未註冊於所選身分：${email}`,
       });
+      // 通用訊息：與密碼登入一致，避免帳號枚舉
       return NextResponse.json({
         success: false,
-        message: `此 Google 帳號尚未註冊於所選身分`,
-      });
+        message: GENERIC_LOGIN_ERROR,
+      }, { status: 401 });
     }
 
     const userDoc = snapshot.docs[0];
     const userData = userDoc.data();
 
-    // 鎖定綁 IP（與密碼登入一致）：非觸發鎖定之來源不受影響
+    // 鎖定：全域（lockIp 為空）或綁定來源 IP（與密碼登入一致）
     const lockedUntil = typeof userData.lockedUntil === "number" ? userData.lockedUntil : 0;
     const lockIp = typeof userData.lockIp === "string" ? userData.lockIp : "";
-    if (lockedUntil > Date.now() && (!lockIp || !ip || lockIp === ip)) {
+    const failedAttempts =
+      typeof userData.failedAttempts === "number" ? userData.failedAttempts : 0;
+    const lockActive =
+      lockedUntil > Date.now() && (!lockIp || !ip || lockIp === ip);
+    const globalLockActive =
+      failedAttempts >= 20 && lockedUntil > Date.now();
+    if (lockActive || globalLockActive) {
       return NextResponse.json({
         success: false,
-        message: "登入失敗，請稍後再試",
-      });
+        message: GENERIC_LOGIN_ERROR,
+      }, { status: 401 });
     }
 
     const now = Date.now();

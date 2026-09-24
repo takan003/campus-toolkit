@@ -5,7 +5,7 @@ import { getAdminDb } from "@/lib/firebase-admin";
 import { getSession, SessionPayload } from "@/lib/server-session";
 import { isJtiRevoked } from "@/lib/revocation";
 import { getClientIp } from "@/lib/audit";
-import { getSessionTimeoutMinutes } from "@/lib/settings-server";
+import { getSessionTimeoutMinutes, isSystemEnabled } from "@/lib/settings-server";
 import { ROLE_COLLECTIONS, UserRole } from "@/types/users";
 
 export async function verifySession(): Promise<SessionPayload | null> {
@@ -15,6 +15,9 @@ export async function verifySession(): Promise<SessionPayload | null> {
   // fail-closed：缺 jti 的 token 無法查詢撤銷狀態，直接拒絕
   if (!session.jti) return null;
   if (await isJtiRevoked(session.jti)) return null;
+
+  // 系統停用（維護模式）時僅保留管理員 session，以便管理員重新啟用
+  if (session.role !== "admin" && !(await isSystemEnabled())) return null;
 
   // 伺服器端閒置逾時：以 JWT lastActivityAt 對照 settings.sessionTimeout
   const idleTimeoutMs = (await getSessionTimeoutMinutes()) * 60 * 1000;

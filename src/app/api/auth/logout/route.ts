@@ -2,12 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { deleteSession, getSession } from "@/lib/server-session";
 import { logActivity, getClientIp } from "@/lib/audit";
 import { assertSameOrigin } from "@/lib/csrf";
+import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { serverErrorMessage } from "@/lib/api-error";
 
 export async function POST(request: NextRequest) {
   try {
     const originDenied = assertSameOrigin(request);
     if (originDenied) return originDenied;
+
+    const limited = enforceRateLimit(
+      request,
+      "logout",
+      RATE.LOGOUT.limit,
+      RATE.LOGOUT.windowMs
+    );
+    if (limited) return limited;
 
     const session = await getSession();
     await deleteSession();

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { isStrongPassword, PASSWORD_REQUIREMENT_MESSAGE } from "@/lib/validation";
 
 export default function NewAdminPage() {
   const router = useRouter();
@@ -28,8 +29,8 @@ export default function NewAdminPage() {
       return;
     }
 
-    if (password.length < 8) {
-      setError("密碼至少 8 個字元");
+    if (password.length < 8 || !isStrongPassword(password)) {
+      setError(PASSWORD_REQUIREMENT_MESSAGE);
       return;
     }
 

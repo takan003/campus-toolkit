@@ -22,12 +22,22 @@ export interface ActivityEntry {
 
 /**
  * 取得客戶端 IP。
- * 不採信 X-Forwarded-For 首段（客戶端可自行偽造）：
- * 優先使用平台／反向代理覆寫的 x-real-ip，否則取 XFF 最右段（由可信代理追加）。
+ * 只信任平台提供的 request.ip，或明確部署在可信反向代理後時的 proxy header。
+ * 直接以 next start 暴露時，x-real-ip / x-forwarded-for 皆可由客戶端偽造，一律不採信，
+ * 避免攻擊者輪換偽造 IP 繞過限流與帳號鎖定。
  */
 export function getClientIp(request: {
   headers: { get(name: string): string | null };
+  ip?: string;
 }): string {
+  if (typeof request.ip === "string" && request.ip.trim()) {
+    return request.ip.trim();
+  }
+
+  const trustProxy =
+    process.env.VERCEL === "1" || process.env.TRUST_PROXY === "true";
+  if (!trustProxy) return "";
+
   const real = request.headers.get("x-real-ip");
   if (real && real.trim()) return real.trim();
 

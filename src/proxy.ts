@@ -40,6 +40,8 @@ function buildContentSecurityPolicy(nonce: string): string {
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
+    // 本機 http 開發若啟用會把 /api/* 升級成 https 導致登入失敗；僅 production HTTPS 加
+    ...(isDev ? [] : ["upgrade-insecure-requests"]),
   ];
   return directives.join("; ");
 }

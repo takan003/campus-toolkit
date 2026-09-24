@@ -7,7 +7,8 @@
     "dev": "node scripts/version.js && next dev",
     "build": "node scripts/version.js && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint . && tsc --noEmit",
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [],
   "author": "takan003",
@@ -36,5 +37,9 @@
     "gaxios": {
       "uuid": "^11.1.1"
     }
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.6"
   }
 }

@@ -24,6 +24,39 @@ export function normalizeAccount(value: unknown): string | null {
   return account;
 }
 
+const COMMON_WEAK_PASSWORDS = new Set([
+  "12345678",
+  "123456789",
+  "1234567890",
+  "password",
+  "password1",
+  "passw0rd",
+  "qwertyui",
+  "qwerty123",
+  "iloveyou",
+  "admin123",
+  "letmein1",
+  "welcome1",
+  "abc12345",
+  "11111111",
+  "00000000",
+  "aaaaaaaa",
+]);
+
+/**
+ * 密碼強度：至少 8 碼、至少兩種字元類別（字母／數字／符號）、擋常見弱密碼。
+ * 客戶端與伺服器共用此檢查，兩側訊息需一致。
+ */
 export function isStrongPassword(value: unknown): value is string {
-  return typeof value === "string" && value.length >= 8;
+  if (typeof value !== "string") return false;
+  if (value.length < 8 || value.length > 128) return false;
+  if (COMMON_WEAK_PASSWORDS.has(value.toLowerCase())) return false;
+
+  const hasLetter = /[a-zA-Z]/.test(value);
+  const hasDigit = /[0-9]/.test(value);
+  const hasSymbol = /[^a-zA-Z0-9]/.test(value);
+  const classes = [hasLetter, hasDigit, hasSymbol].filter(Boolean).length;
+  return classes >= 2;
 }
+
+export const PASSWORD_REQUIREMENT_MESSAGE = "密碼至少 8 碼，且需包含字母與數字";

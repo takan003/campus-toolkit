@@ -7,6 +7,8 @@ import { UserRole, isUserRole } from "@/types/users";
 export const SESSION_COOKIE =
   process.env.NODE_ENV === "production" ? "__Host-session" : "session";
 export const SESSION_MAX_AGE_SECONDS = 12 * 60 * 60;
+/** 絕對上限：無論 keepalive 如何續期，超過此時間必須重新登入（防被竊 cookie 無限續命） */
+export const SESSION_ABSOLUTE_MAX_AGE_SECONDS = 12 * 60 * 60;
 
 export interface SessionPayload {
   uid: string;
@@ -18,6 +20,8 @@ export interface SessionPayload {
   jti: string;
   /** 最後一次使用者活動（epoch ms），用於伺服器端閒置逾時檢查 */
   lastActivityAt: number;
+  /** 絕對過期時間（epoch ms），續期時保留原值、不重設 */
+  absoluteExpiresAt: number;
 }
 
 function getSecretKey(): Uint8Array {
@@ -37,6 +41,7 @@ export async function signSessionToken(payload: SessionPayload): Promise<string>
     role: payload.role,
     tokenVersion: payload.tokenVersion,
     lastActivityAt: payload.lastActivityAt,
+    absoluteExpiresAt: payload.absoluteExpiresAt,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -64,6 +69,14 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
 
     const iatMs = typeof payload.iat === "number" ? payload.iat * 1000 : Date.now();
 
+    // 絕對過期：續期只更新 lastActivityAt，不重設此值；
+    // 舊 token 無此 claim 時以 iat + 絕對上限推導，保持同等約束。
+    const absoluteExpiresAt =
+      typeof payload.absoluteExpiresAt === "number" && payload.absoluteExpiresAt > 0
+        ? payload.absoluteExpiresAt
+        : iatMs + SESSION_ABSOLUTE_MAX_AGE_SECONDS * 1000;
+    if (Date.now() >= absoluteExpiresAt) return null;
+
     return {
       uid: payload.uid,
       email: typeof payload.email === "string" ? payload.email : "",
@@ -76,6 +89,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
         typeof payload.lastActivityAt === "number" && payload.lastActivityAt > 0
           ? payload.lastActivityAt
           : iatMs,
+      absoluteExpiresAt,
     };
   } catch {
     return null;

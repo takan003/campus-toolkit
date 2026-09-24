@@ -53,8 +53,17 @@ function pickSettings(raw: Record<string, unknown>): Settings {
   return out as unknown as Settings;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const limited = enforceRateLimit(
+      request,
+      "settings-get",
+      RATE.SETTINGS_GET.limit,
+      RATE.SETTINGS_GET.windowMs
+    );
+    if (limited) return limited;
+
+    const noStore = { "Cache-Control": "no-store" };
     const session = await verifySession();
     const isAdmin = session?.role === "admin";
 
@@ -64,15 +73,21 @@ export async function GET() {
       .get();
     const data = snap.exists ? (snap.data() as Record<string, unknown>) : {};
     const settings = pickSettings(data ?? {});
-    return NextResponse.json({
-      success: true,
-      settings: isAdmin ? settings : pickPublicSettings(settings),
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        settings: isAdmin ? settings : pickPublicSettings(settings),
+      },
+      { headers: noStore }
+    );
   } catch {
-    return NextResponse.json({
-      success: true,
-      settings: pickPublicSettings(defaultSettings),
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        settings: pickPublicSettings(defaultSettings),
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   }
 }
 

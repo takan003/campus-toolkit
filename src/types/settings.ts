@@ -31,7 +31,8 @@ export const defaultSettings: Settings = {
   oauthEnabled: false,
   oauthClientId: "",
   totpEnabled: false,
-  twoFactorEnabled: true,
+  // TOTP／2FA 尚未實作：預設關閉，避免管理員誤以為已啟用
+  twoFactorEnabled: false,
   sessionTimeout: 10,
   cssThemeId: "",
   copyrightNotice: true,

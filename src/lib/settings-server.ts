@@ -7,10 +7,39 @@ const SETTINGS_DOC_ID = "system";
 const CACHE_TTL_MS = 30_000;
 
 let timeoutCache: { minutes: number; at: number } | null = null;
+let enabledCache: { enabled: boolean; at: number } | null = null;
 
-/** 設定儲存後呼叫，讓閒置逾時快取立即失效 */
+/** 設定儲存後呼叫，讓閒置逾時與系統啟用狀態快取立即失效 */
 export function invalidateSettingsCache(): void {
   timeoutCache = null;
+  enabledCache = null;
+}
+
+/**
+ * 讀取 settings.systemEnabled（維護模式），供伺服器端強制執行。
+ * 與閒置逾時共用 30 秒 in-process 快取；讀失敗時回退上次值或預設啟用。
+ */
+export async function isSystemEnabled(): Promise<boolean> {
+  const now = Date.now();
+  if (enabledCache && now - enabledCache.at < CACHE_TTL_MS) return enabledCache.enabled;
+
+  try {
+    const snap = await getAdminDb()
+      .collection(SETTINGS_COLLECTION)
+      .doc(SETTINGS_DOC_ID)
+      .get();
+    const raw = snap.exists
+      ? (snap.data() as Record<string, unknown> | undefined)?.systemEnabled
+      : undefined;
+    const enabled =
+      typeof raw === "boolean" ? raw : defaultSettings.systemEnabled;
+    enabledCache = { enabled, at: now };
+    return enabled;
+  } catch (error) {
+    console.error("System enabled settings read error:", error);
+    if (enabledCache) return enabledCache.enabled;
+    return defaultSettings.systemEnabled;
+  }
 }
 
 /**

@@ -7,6 +7,7 @@ import { revokeJti } from "@/lib/revocation";
 import { logActivity, getClientIp } from "@/lib/audit";
 import { enforceRateLimit, RATE, checkRateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { assertSameOrigin } from "@/lib/csrf";
+import { isStrongPassword, PASSWORD_REQUIREMENT_MESSAGE } from "@/lib/validation";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 import { serverErrorMessage } from "@/lib/api-error";
 
@@ -27,11 +28,17 @@ export async function POST(request: NextRequest) {
     const { account, oldPassword, newPassword, role } = await request.json();
 
     if (!account || !oldPassword || !newPassword) {
-      return NextResponse.json({ success: false, message: "請填寫完整資訊" });
+      return NextResponse.json(
+        { success: false, message: "請填寫完整資訊" },
+        { status: 400 }
+      );
     }
 
     if (!isUserRole(role)) {
-      return NextResponse.json({ success: false, message: "無效的角色" });
+      return NextResponse.json(
+        { success: false, message: "無效的角色" },
+        { status: 400 }
+      );
     }
 
     const session = await verifySession();
@@ -41,23 +48,27 @@ export async function POST(request: NextRequest) {
       return forbidden("僅能變更自身密碼");
     }
 
-    if (newPassword.length < 8) {
-      return NextResponse.json({ success: false, message: "新密碼至少 8 碼" });
+    if (!isStrongPassword(newPassword)) {
+      return NextResponse.json(
+        { success: false, message: PASSWORD_REQUIREMENT_MESSAGE },
+        { status: 400 }
+      );
     }
 
     // 一律以 session.uid 直取自身文件，避免用 body account 查詢命中他人文件（IDOR）
     const collectionName = ROLE_COLLECTIONS[session.role];
     const userDoc = await getAdminDb().collection(collectionName).doc(session.uid).get();
     if (!userDoc.exists) {
-      return NextResponse.json({ success: false, message: "帳號不存在" });
+      return NextResponse.json({ success: false, message: "帳號不存在" }, { status: 404 });
     }
 
     const userData = userDoc.data()!;
 
     const isValid = await verifyPassword(oldPassword, userData.passwordHash);
     if (!isValid) {
-      // 舊密碼錯誤也計入失敗（enforceRateLimit 已先計成功次數，此處補記失敗軸）
-      const failKey = `change-password-fail:${ip}`;
+      // 舊密碼錯誤也計入失敗（enforceRateLimit 已先計成功次數，此處補記失敗軸；
+      // key 納入 uid，不依賴可能為空的 IP）
+      const failKey = `change-password-fail:${session.uid}`;
       const fail = checkRateLimit(failKey, 5, RATE.CHANGE_PASSWORD.windowMs);
       await logActivity({
         userId: session.uid,
@@ -67,7 +78,7 @@ export async function POST(request: NextRequest) {
         details: "變更密碼時舊密碼錯誤",
       });
       if (!fail.ok) return tooManyRequests(fail.retryAfterSec);
-      return NextResponse.json({ success: false, message: "目前密碼錯誤" });
+      return NextResponse.json({ success: false, message: "目前密碼錯誤" }, { status: 401 });
     }
 
     const passwordHash = await hashPassword(newPassword, 12);
@@ -108,6 +119,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: false,
       message: serverErrorMessage(error, "系統錯誤，請稍後再試"),
-    });
+    }, { status: 500 });
   }
 }

@@ -5,15 +5,26 @@ import { requireRole, toAuthResponse } from "@/lib/dal";
 import { logActivity, getClientIp } from "@/lib/audit";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { assertSameOrigin } from "@/lib/csrf";
-import { normalizeEmail, normalizeAccount, isStrongPassword } from "@/lib/validation";
+import { normalizeEmail, normalizeAccount, isStrongPassword, PASSWORD_REQUIREMENT_MESSAGE } from "@/lib/validation";
 import { serverErrorMessage } from "@/lib/api-error";
 
 /** 供 /setup 判斷是否仍可建立首任管理員（不揭露環境變數名稱） */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const limited = enforceRateLimit(
+      request,
+      "admin-create-status",
+      RATE.ADMIN_CREATE_STATUS.limit,
+      RATE.ADMIN_CREATE_STATUS.windowMs
+    );
+    if (limited) return limited;
+
     const existingCount = (await getAdminDb().collection("admins").count().get()).data().count;
     const available = existingCount === 0 && process.env.ALLOW_BOOTSTRAP_ADMIN === "true";
-    return NextResponse.json({ success: true, available });
+    return NextResponse.json(
+      { success: true, available },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error) {
     console.error("Admin create status error:", error);
     return NextResponse.json({ success: false, available: false }, { status: 500 });
@@ -59,20 +70,32 @@ export async function POST(request: NextRequest) {
     const normEmail = normalizeEmail(email);
     const normAccount = normalizeAccount(account);
     if (!normEmail || !normAccount || !password) {
-      return NextResponse.json({ success: false, message: "請填寫完整資訊" });
+      return NextResponse.json(
+        { success: false, message: "請填寫完整資訊" },
+        { status: 400 }
+      );
     }
     if (!isStrongPassword(password)) {
-      return NextResponse.json({ success: false, message: "密碼至少 8 碼" });
+      return NextResponse.json(
+        { success: false, message: PASSWORD_REQUIREMENT_MESSAGE },
+        { status: 400 }
+      );
     }
 
     const emailSnapshot = await adminsRef.where("email", "==", normEmail).limit(1).get();
     if (!emailSnapshot.empty) {
-      return NextResponse.json({ success: false, message: "此電子郵件已被使用" });
+      return NextResponse.json(
+        { success: false, message: "此電子郵件已被使用" },
+        { status: 409 }
+      );
     }
 
     const accountSnapshot = await adminsRef.where("account", "==", normAccount).limit(1).get();
     if (!accountSnapshot.empty) {
-      return NextResponse.json({ success: false, message: "此帳號已被使用" });
+      return NextResponse.json(
+        { success: false, message: "此帳號已被使用" },
+        { status: 409 }
+      );
     }
 
     // costFactor 不接受 request body 指定：固定使用預設 12，避免被降為弱成本雜湊

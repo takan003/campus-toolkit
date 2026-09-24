@@ -90,6 +90,7 @@ const settingGroups: SettingGroup[] = [
         id: "totpEnabled",
         label: "OAuth 下的 TOTP 狀態",
         type: "select",
+        help: "尚未實作，目前設定不會生效",
         options: [
           { value: "true", label: "啟用" },
           { value: "false", label: "關閉" },
@@ -99,6 +100,7 @@ const settingGroups: SettingGroup[] = [
         id: "twoFactorEnabled",
         label: "兩階段驗證",
         type: "select",
+        help: "尚未實作，目前設定不會生效",
         options: [
           { value: "true", label: "啟用" },
           { value: "false", label: "停用" },

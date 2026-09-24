@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isStrongPassword, PASSWORD_REQUIREMENT_MESSAGE } from "@/lib/validation";
 
 export default function SetupPage() {
   const [email, setEmail] = useState("");
@@ -42,8 +43,8 @@ export default function SetupPage() {
       return;
     }
 
-    if (password.length < 8) {
-      setError("密碼至少 8 個字元");
+    if (password.length < 8 || !isStrongPassword(password)) {
+      setError(PASSWORD_REQUIREMENT_MESSAGE);
       return;
     }
 

@@ -109,12 +109,35 @@ export function enforceRateLimit(
   return null;
 }
 
+/**
+ * 帳號維度限流：以 role:account 為 key，不依賴 IP，
+ * 即使 IP 無法取得或可偽造，仍能擋住針對單一帳號的爆破。
+ * 注意：仍為進程內計數；跨實例的持久化防護見 login 路由的 Firestore failedAttempts／全域鎖定。
+ */
+export function enforceAccountRateLimit(
+  bucketName: string,
+  role: string,
+  account: string,
+  limit: number,
+  windowMs: number
+): NextResponse | null {
+  const key = `${bucketName}:acct:${role}:${account.toLowerCase()}`;
+  const result = checkRateLimit(key, limit, windowMs);
+  if (!result.ok) return tooManyRequests(result.retryAfterSec);
+  return null;
+}
+
 export const RATE = {
   LOGIN: { limit: 10, windowMs: 60_000 },
+  LOGIN_ACCOUNT: { limit: 30, windowMs: 15 * 60_000 },
   GOOGLE: { limit: 10, windowMs: 60_000 },
   CHANGE_PASSWORD: { limit: 10, windowMs: 60_000 },
   KEEPALIVE: { limit: 60, windowMs: 60_000 },
+  LOGOUT: { limit: 30, windowMs: 60_000 },
+  SETTINGS_GET: { limit: 60, windowMs: 60_000 },
   ADMIN_CREATE: { limit: 5, windowMs: 60 * 60_000 },
+  ADMIN_CREATE_STATUS: { limit: 30, windowMs: 60_000 },
+  ADMIN_LIST: { limit: 60, windowMs: 60_000 },
   ADMIN_MUTATE: { limit: 10, windowMs: 60 * 60_000 },
   ADMIN_ACTIVITY: { limit: 120, windowMs: 60_000 },
   SEED_ROLES: { limit: 5, windowMs: 60 * 60_000 },

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Settings, defaultSettings } from "@/types/settings";
 import { UserRole, ROLE_LABELS, ROLE_SPECIFIC_FIELDS } from "@/types/users";
 import { fetchSession, logout } from "@/lib/session";
+import { isStrongPassword, PASSWORD_REQUIREMENT_MESSAGE } from "@/lib/validation";
 import Copyright from "@/components/Copyright";
 
 export default function AccountSecurityPage({ role }: { role: Exclude<UserRole, "admin"> }) {
@@ -81,8 +82,8 @@ export default function AccountSecurityPage({ role }: { role: Exclude<UserRole, 
       setMessage({ type: "error", text: "請填寫所有密碼欄位" });
       return;
     }
-    if (newPassword.length < 8) {
-      setMessage({ type: "error", text: "新密碼至少 8 碼" });
+    if (!isStrongPassword(newPassword)) {
+      setMessage({ type: "error", text: PASSWORD_REQUIREMENT_MESSAGE });
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -189,7 +190,7 @@ export default function AccountSecurityPage({ role }: { role: Exclude<UserRole, 
           autoComplete="current-password"
         />
 
-        <label className="block text-sm text-t2 mb-1">新密碼（至少 8 碼）</label>
+            <label className="block text-sm text-t2 mb-1">新密碼（至少 8 碼，需含字母與數字）</label>
         <input
           type="password"
           value={newPassword}

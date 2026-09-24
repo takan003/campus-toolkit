@@ -5,7 +5,7 @@ import { requireRole, toAuthResponse } from "@/lib/dal";
 import { assertSameOrigin } from "@/lib/csrf";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { logActivity, getClientIp } from "@/lib/audit";
-import { normalizeEmail, normalizeAccount, isStrongPassword } from "@/lib/validation";
+import { normalizeEmail, normalizeAccount, isStrongPassword, PASSWORD_REQUIREMENT_MESSAGE } from "@/lib/validation";
 import { serverErrorMessage } from "@/lib/api-error";
 
 async function requireAdmin() {
@@ -14,8 +14,16 @@ async function requireAdmin() {
   return null;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const limited = enforceRateLimit(
+      request,
+      "admin-list",
+      RATE.ADMIN_LIST.limit,
+      RATE.ADMIN_LIST.windowMs
+    );
+    if (limited) return limited;
+
     const denied = await requireAdmin();
     if (denied) return denied;
 
@@ -35,7 +43,10 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({ success: true, admins });
+    return NextResponse.json(
+      { success: true, admins },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch (error) {
     console.error("List admins error:", error);
     return NextResponse.json({ success: false, message: serverErrorMessage(error, "系統錯誤") });
@@ -61,13 +72,16 @@ export async function PUT(request: NextRequest) {
     const { uid, email, account, displayName, password } = await request.json();
 
     if (!uid || typeof uid !== "string") {
-      return NextResponse.json({ success: false, message: "缺少管理員 ID" });
+      return NextResponse.json(
+        { success: false, message: "缺少管理員 ID" },
+        { status: 400 }
+      );
     }
 
     const adminRef = getAdminDb().collection("admins").doc(uid);
     const adminSnap = await adminRef.get();
     if (!adminSnap.exists) {
-      return NextResponse.json({ success: false, message: "管理員不存在" });
+      return NextResponse.json({ success: false, message: "管理員不存在" }, { status: 404 });
     }
     const target = adminSnap.data();
 
@@ -75,21 +89,37 @@ export async function PUT(request: NextRequest) {
     const adminsRef = getAdminDb().collection("admins");
     if (email !== undefined) {
       const normEmail = normalizeEmail(email);
-      if (!normEmail) return NextResponse.json({ success: false, message: "電子郵件格式無效" });
+      if (!normEmail) {
+        return NextResponse.json(
+          { success: false, message: "電子郵件格式無效" },
+          { status: 400 }
+        );
+      }
       // 查重（排除自身），與 create 流程一致
       const dupEmail = await adminsRef.where("email", "==", normEmail).limit(1).get();
       if (!dupEmail.empty && dupEmail.docs[0].id !== uid) {
-        return NextResponse.json({ success: false, message: "此電子郵件已被使用" });
+        return NextResponse.json(
+          { success: false, message: "此電子郵件已被使用" },
+          { status: 409 }
+        );
       }
       updateData.email = normEmail;
     }
     if (account !== undefined) {
       const normAccount = normalizeAccount(account);
-      if (!normAccount) return NextResponse.json({ success: false, message: "帳號格式無效" });
+      if (!normAccount) {
+        return NextResponse.json(
+          { success: false, message: "帳號格式無效" },
+          { status: 400 }
+        );
+      }
       // 查重（排除自身），與 create 流程一致
       const dupAccount = await adminsRef.where("account", "==", normAccount).limit(1).get();
       if (!dupAccount.empty && dupAccount.docs[0].id !== uid) {
-        return NextResponse.json({ success: false, message: "此帳號已被使用" });
+        return NextResponse.json(
+          { success: false, message: "此帳號已被使用" },
+          { status: 409 }
+        );
       }
       updateData.account = normAccount;
     }
@@ -99,7 +129,10 @@ export async function PUT(request: NextRequest) {
     let passwordChanged = false;
     if (password) {
       if (!isStrongPassword(password)) {
-        return NextResponse.json({ success: false, message: "密碼至少 8 碼" });
+        return NextResponse.json(
+          { success: false, message: PASSWORD_REQUIREMENT_MESSAGE },
+          { status: 400 }
+        );
       }
       // costFactor 不接受 request body 指定：固定使用預設 12
       updateData.passwordHash = await hashPassword(password);
@@ -153,13 +186,16 @@ export async function DELETE(request: NextRequest) {
     const { uid } = await request.json();
 
     if (!uid || typeof uid !== "string") {
-      return NextResponse.json({ success: false, message: "缺少管理員 ID" });
+      return NextResponse.json(
+        { success: false, message: "缺少管理員 ID" },
+        { status: 400 }
+      );
     }
 
     const adminRef = getAdminDb().collection("admins").doc(uid);
     const targetSnap = await adminRef.get();
     if (!targetSnap.exists) {
-      return NextResponse.json({ success: false, message: "管理員不存在" });
+      return NextResponse.json({ success: false, message: "管理員不存在" }, { status: 404 });
     }
     const target = targetSnap.data();
 

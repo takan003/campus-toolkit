@@ -38,11 +38,11 @@ type RuntimeState = {
 const CONFIG = {
   // 可調參數區：每回合起始嫦娥數量
   startingChangEs: 5,
-  // 可調參數區：滿月基礎掉落速度（像素/秒）
+  // 可調參數區：滿月基礎上升速度（像素/秒）
   moonBaseFallSpeed: 150,
-  // 可調參數區：滿月隨時間增加掉落速度（像素/秒）
+  // 可調參數區：滿月隨時間增加上升速度（像素/秒）
   moonTimeRampSpeed: 16,
-  // 可調參數區：滿月隨分數增加掉落速度（像素/秒）
+  // 可調參數區：滿月隨分數增加上升速度（像素/秒）
   moonScoreRampSpeed: 4,
   // 可調參數區：滿月生成基礎間隔（秒）
   moonSpawnBaseInterval: 1.4,
@@ -68,9 +68,9 @@ const CONFIG = {
   idleBobAngularSpeed: 2.1,
   // 可調參數區：右側嫦娥活動區寬度比例
   playerZoneRatio: 0.2,
-  // 可調參數區：左側滿月掉落區寬度比例
+  // 可調參數區：左側滿月上升區寬度比例
   moonZoneRatio: 0.5,
-  // 可調參數區：滿月掉落速度等級範圍（1 最慢、10 最快，每顆隨機）
+  // 可調參數區：滿月上升速度等級範圍（1 最慢、10 最快，每顆隨機）
   moonSpeedLevelMin: 1,
   moonSpeedLevelMax: 10,
   // 可調參數區：連擊字樣顯示時間（毫秒）
@@ -389,7 +389,7 @@ export default function HomepageCornerChangE() {
     const levelMid = (CONFIG.moonSpeedLevelMin + CONFIG.moonSpeedLevelMax) / 2;
     const speed =
       ((CONFIG.moonBaseFallSpeed + rampByTime + rampByScore) * speedLevel) / levelMid;
-    runtime.moons.push({ x, y: -size - 10, size, speed });
+    runtime.moons.push({ x, y: runtime.height + 10, size, speed });
   }, []);
 
   const resolveShot = useCallback(() => {
@@ -482,9 +482,9 @@ export default function HomepageCornerChangE() {
     }
 
     runtime.moons.forEach((moon) => {
-      moon.y += moon.speed * dt;
+      moon.y -= moon.speed * dt;
     });
-    runtime.moons = runtime.moons.filter((moon) => moon.y < runtime.height + moon.size + 12);
+    runtime.moons = runtime.moons.filter((moon) => moon.y + moon.size > -12);
 
     const projectile = runtime.projectile;
     const bobOffset = Math.sin((runtime.elapsedMs / 1000) * CONFIG.bobAngularSpeed) * CONFIG.bobAmplitude;

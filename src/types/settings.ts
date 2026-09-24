@@ -10,8 +10,6 @@ export interface Settings {
   contactEmail: string;
   oauthEnabled: boolean;
   oauthClientId: string;
-  totpEnabled: boolean;
-  twoFactorEnabled: boolean;
   sessionTimeout: number;
   cssThemeId: string; // Admin 強制主題
   copyrightNotice: boolean;
@@ -30,9 +28,6 @@ export const defaultSettings: Settings = {
   contactEmail: "",
   oauthEnabled: false,
   oauthClientId: "",
-  totpEnabled: false,
-  // TOTP／2FA 尚未實作：預設關閉，避免管理員誤以為已啟用
-  twoFactorEnabled: false,
   sessionTimeout: 10,
   cssThemeId: "",
   copyrightNotice: true,

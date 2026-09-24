@@ -106,8 +106,6 @@ export async function POST(request: NextRequest) {
       account: normAccount,
       displayName: typeof displayName === "string" ? displayName.slice(0, 64) : "",
       passwordHash,
-      twoFactorMethod: "none",
-      totpSecret: "",
       lastLogin: 0,
       lastLoginMethod: "",
       loginCount: 0,

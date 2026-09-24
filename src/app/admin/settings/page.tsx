@@ -87,26 +87,6 @@ const settingGroups: SettingGroup[] = [
       },
       { id: "oauthClientId", label: "OAuth 用戶端 ID", type: "text", placeholder: "" },
       {
-        id: "totpEnabled",
-        label: "OAuth 下的 TOTP 狀態",
-        type: "select",
-        help: "尚未實作，目前設定不會生效",
-        options: [
-          { value: "true", label: "啟用" },
-          { value: "false", label: "關閉" },
-        ],
-      },
-      {
-        id: "twoFactorEnabled",
-        label: "兩階段驗證",
-        type: "select",
-        help: "尚未實作，目前設定不會生效",
-        options: [
-          { value: "true", label: "啟用" },
-          { value: "false", label: "停用" },
-        ],
-      },
-      {
         id: "sessionTimeout",
         label: "閒置逾時（分鐘）",
         type: "number",
@@ -242,8 +222,7 @@ export default function SettingsPage() {
 
   function handleChange(id: keyof Settings, value: string) {
     const booleanFields: (keyof Settings)[] = [
-      "systemEnabled", "oauthEnabled", "totpEnabled",
-      "twoFactorEnabled",
+      "systemEnabled", "oauthEnabled",
       "copyrightNotice", "sponsorAdEnabled",
     ];
     const numberFields: (keyof Settings)[] = [

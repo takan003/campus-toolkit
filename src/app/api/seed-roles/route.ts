@@ -33,6 +33,14 @@ async function existsIn(collectionName: string, account: string, email: string):
 
 export async function seedRoles() {
   try {
+    // 生產環境預設拒絕；需顯式 ALLOW_SEED_ROLES=true 才允許（與 bootstrap 同級防護）
+    if (process.env.NODE_ENV === "production" && process.env.ALLOW_SEED_ROLES !== "true") {
+      return NextResponse.json(
+        { success: false, message: "生產環境已停用種子角色（ALLOW_SEED_ROLES 未啟用）" },
+        { status: 403 }
+      );
+    }
+
     const creds = seedCredentials();
     if (!creds) {
       return NextResponse.json(
@@ -48,8 +56,6 @@ export async function seedRoles() {
       email: DEFAULT_EMAIL,
       account: DEFAULT_ACCOUNT,
       passwordHash,
-      twoFactorEnabled: false,
-      totpSecret: "",
       name: "",
       loginRecords: [],
       lastLoginMethod: "",

@@ -29,8 +29,6 @@ export interface BaseUserRecord {
   email: string;
   account: string;
   passwordHash: string;
-  twoFactorEnabled: boolean;
-  totpSecret: string;
   name: string;
   loginRecords: number[];
   lastLoginMethod: string;

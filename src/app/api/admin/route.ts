@@ -36,7 +36,6 @@ export async function GET(request: NextRequest) {
         email: data.email,
         account: data.account,
         displayName: data.displayName,
-        twoFactorMethod: data.twoFactorMethod,
         lastLogin: data.lastLogin,
         loginCount: data.loginCount,
         createdAt: data.createdAt,

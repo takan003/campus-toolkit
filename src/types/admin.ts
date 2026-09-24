@@ -4,8 +4,6 @@ export interface AdminUser {
   account: string;
   displayName: string;
   passwordHash: string;
-  twoFactorMethod: "none" | "email" | "totp";
-  totpSecret: string;
   lastLogin: number;
   lastLoginMethod: string;
   loginCount: number;
@@ -20,8 +18,6 @@ export const defaultAdminUser: Omit<AdminUser, "uid" | "passwordHash" | "created
   email: "",
   account: "",
   displayName: "",
-  twoFactorMethod: "none",
-  totpSecret: "",
   lastLogin: 0,
   lastLoginMethod: "",
   loginCount: 0,

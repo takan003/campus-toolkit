@@ -18,8 +18,6 @@ type ChangEProjectile = {
   width: number;
   height: number;
   speed: number;
-  angle: number;
-  spinSpeed: number;
   hitsThisShot: number;
   resolved: boolean;
 };
@@ -55,13 +53,19 @@ const CONFIG = {
   // 可調參數區：滿月生成隨分數加速係數（秒）
   moonSpawnScoreRamp: 0.011,
   // 可調參數區：滿月像素尺寸
-  moonSize: 24,
+  moonSize: 48,
   // 可調參數區：嫦娥上下移動速度（像素/秒）
   moveSpeed: 290,
   // 可調參數區：嫦娥飛行速度（像素/秒）
   projectileSpeed: 490,
-  // 可調參數區：嫦娥旋轉速度（弧度/秒）
-  projectileSpinSpeed: 8.4,
+  // 可調參數區：嫦娥飛行時上下飄動幅度（像素）
+  bobAmplitude: 10,
+  // 可調參數區：嫦娥飛行時上下飄動速度（弧度/秒）
+  bobAngularSpeed: 2.8,
+  // 可調參數區：嫦娥待機時上下飄動幅度（像素）
+  idleBobAmplitude: 5,
+  // 可調參數區：嫦娥待機時上下飄動速度（弧度/秒）
+  idleBobAngularSpeed: 2.1,
   // 可調參數區：右側嫦娥活動區寬度比例
   playerZoneRatio: 0.2,
   // 可調參數區：左側滿月掉落區寬度比例
@@ -160,7 +164,7 @@ function createMetalHitContext(): AudioContext | null {
   }
 }
 
-function playMetalHit(audioCtx: AudioContext | null): void {
+function playMoonChime(audioCtx: AudioContext | null): void {
   if (!audioCtx) return;
   if (audioCtx.state === "suspended") {
     void audioCtx.resume();
@@ -168,23 +172,29 @@ function playMetalHit(audioCtx: AudioContext | null): void {
 
   const now = audioCtx.currentTime;
   const master = audioCtx.createGain();
-  master.gain.setValueAtTime(0.7, now);
-  master.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+  master.gain.setValueAtTime(0.45, now);
+  master.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
   master.connect(audioCtx.destination);
 
-  const partials = [1850, 2680, 3410];
-  partials.forEach((freq, index) => {
+  // 空靈風鈴／碰鐘感：C6–E6–G6 琶音點亮，適合嫦娥碰月
+  const partials = [
+    { freq: 1046.5, delay: 0, decay: 0.5 },
+    { freq: 1318.5, delay: 0.05, decay: 0.45 },
+    { freq: 1568.0, delay: 0.1, decay: 0.4 },
+  ];
+  partials.forEach(({ freq, delay, decay }, index) => {
+    const start = now + delay;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    osc.type = index === 0 ? "triangle" : "sine";
-    osc.frequency.setValueAtTime(freq, now);
-    osc.frequency.exponentialRampToValueAtTime(freq * 0.72, now + 0.16);
-    gain.gain.setValueAtTime(0.9 / (index + 1), now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16 - index * 0.02);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq, start);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.7 / (index + 1), start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + decay);
     osc.connect(gain);
     gain.connect(master);
-    osc.start(now);
-    osc.stop(now + 0.18);
+    osc.start(start);
+    osc.stop(start + decay + 0.05);
   });
 }
 
@@ -218,8 +228,6 @@ function createRuntime(width: number, height: number): RuntimeState {
       width: 96,
       height: 60,
       speed: CONFIG.projectileSpeed,
-      angle: 0,
-      spinSpeed: CONFIG.projectileSpinSpeed,
       hitsThisShot: 0,
       resolved: false,
     },
@@ -432,7 +440,6 @@ export default function HomepageCornerChangE() {
       active: true,
       x,
       y,
-      angle: 0,
       hitsThisShot: 0,
       resolved: false,
     };
@@ -480,13 +487,15 @@ export default function HomepageCornerChangE() {
     runtime.moons = runtime.moons.filter((moon) => moon.y < runtime.height + moon.size + 12);
 
     const projectile = runtime.projectile;
+    const bobOffset = Math.sin((runtime.elapsedMs / 1000) * CONFIG.bobAngularSpeed) * CONFIG.bobAmplitude;
+    const idleBobOffset =
+      Math.sin((runtime.elapsedMs / 1000) * CONFIG.idleBobAngularSpeed) * CONFIG.idleBobAmplitude;
     if (projectile.active) {
       projectile.x -= projectile.speed * dt;
-      projectile.angle += projectile.spinSpeed * dt;
 
       const projectileBox = {
         x: projectile.x,
-        y: projectile.y,
+        y: projectile.y + bobOffset,
         w: projectile.width,
         h: projectile.height,
       };
@@ -495,7 +504,7 @@ export default function HomepageCornerChangE() {
         const hit = intersects(projectileBox, moonBox);
         if (hit) {
           projectile.hitsThisShot += 1;
-          playMetalHit(audioCtxRef.current);
+          playMoonChime(audioCtxRef.current);
         }
         return !hit;
       });
@@ -518,21 +527,15 @@ export default function HomepageCornerChangE() {
     const playerY = runtime.playerY - playerHeight / 2;
 
     if (!projectile.active) {
-      drawChangE(ctx, playerX, playerY, playerWidth, playerHeight);
+      drawChangE(ctx, playerX, playerY + idleBobOffset, playerWidth, playerHeight);
     } else {
-      ctx.save();
-      const cx = runtime.projectile.x + runtime.projectile.width / 2;
-      const cy = runtime.projectile.y + runtime.projectile.height / 2;
-      ctx.translate(Math.round(cx), Math.round(cy));
-      ctx.rotate(runtime.projectile.angle);
       drawChangE(
         ctx,
-        -runtime.projectile.width / 2,
-        -runtime.projectile.height / 2,
-        runtime.projectile.width,
-        runtime.projectile.height
+        projectile.x,
+        projectile.y + bobOffset,
+        projectile.width,
+        projectile.height
       );
-      ctx.restore();
     }
 
     frameRef.current = window.requestAnimationFrame(tick);

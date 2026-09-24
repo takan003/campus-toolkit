@@ -12,7 +12,7 @@ export default function ThemeToggle() {
       {/* 觸發按鈕 */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed top-4 right-4 z-40 w-12 h-12 rounded-full border shadow-lg flex items-center justify-center cursor-pointer transition-transform hover:scale-110"
+        className="fixed top-4 right-4 z-40 w-9 h-9 rounded-full border shadow-lg flex items-center justify-center cursor-pointer transition-transform hover:scale-110"
         style={{
           backgroundColor: "var(--card)",
           borderColor: "var(--bd)",
@@ -21,7 +21,7 @@ export default function ThemeToggle() {
         title="切換主題"
       >
         <svg
-          className="w-6 h-6"
+          className="w-4.5 h-4.5"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"

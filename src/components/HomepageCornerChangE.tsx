@@ -780,6 +780,16 @@ export default function HomepageCornerChangE() {
               aria-label="互動畫布"
             />
 
+            <p className="mt-1 text-center text-xs text-t3">
+              <a
+                href="https://zh.pngtree.com/freepng/mid-autumn-festival-cartoon-hand-drawn-dragonfly-flying-to-the--star-diamond-fairy_3853789.html"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                png 圖片來源於 zh.pngtree.com/
+              </a>
+            </p>
+
             <div className="hidden sm:block pointer-events-none absolute left-3 top-3 text-black font-mono text-sm sm:text-base">
               <div>
                 玩家: {playerName}

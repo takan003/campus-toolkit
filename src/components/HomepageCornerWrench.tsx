@@ -64,7 +64,10 @@ const CONFIG = {
   // 可調參數區：右側扳手活動區寬度比例
   wrenchZoneRatio: 0.2,
   // 可調參數區：左側螺帽掉落區寬度比例
-  nutZoneRatio: 0.25,
+  nutZoneRatio: 0.5,
+  // 可調參數區：螺帽掉落速度等級範圍（1 最慢、10 最快，每顆隨機）
+  nutSpeedLevelMin: 1,
+  nutSpeedLevelMax: 10,
   // 可調參數區：連擊字樣顯示時間（毫秒）
   comboBannerMs: 900,
   // 可調參數區：最高分 localStorage 鍵名
@@ -377,9 +380,14 @@ export default function HomepageCornerWrench() {
     const maxX = Math.floor(runtime.width * CONFIG.nutZoneRatio) - size - 8;
     const minX = 8;
     const x = Math.max(minX, Math.floor(Math.random() * Math.max(1, maxX - minX + 1)) + minX);
+    const speedLevel =
+      CONFIG.nutSpeedLevelMin +
+      Math.random() * (CONFIG.nutSpeedLevelMax - CONFIG.nutSpeedLevelMin);
     const rampByTime = (runtime.elapsedMs / 1000 / 30) * CONFIG.nutTimeRampSpeed;
     const rampByScore = scoreRef.current * CONFIG.nutScoreRampSpeed;
-    const speed = CONFIG.nutBaseFallSpeed + rampByTime + rampByScore + Math.random() * 36;
+    const levelMid = (CONFIG.nutSpeedLevelMin + CONFIG.nutSpeedLevelMax) / 2;
+    const speed =
+      ((CONFIG.nutBaseFallSpeed + rampByTime + rampByScore) * speedLevel) / levelMid;
     runtime.nuts.push({ x, y: -size - 10, size, speed });
   }, []);
 

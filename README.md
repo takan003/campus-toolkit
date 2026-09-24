@@ -4,6 +4,87 @@
 
 歡迎感興趣的使用者 fork 自架。請先完成下方「環境變數」與「首次啟動」流程，缺金鑰無法運作。
 
+## 白話流程總覽（給第一次自架的人）
+
+把整件事想成「辦好帳號 → 把程式搬回家 → 填設定 → 開張 → 上線」，大約是這樣：
+
+### 第 1 步：開設 3 種帳號（都免費）
+
+| 帳號 | 用途（白話） |
+|------|----------------|
+| [GitHub](https://github.com/) | 存放程式碼；按 Fork 把本專案複製到你自己的帳號下 |
+| [Firebase](https://console.firebase.google.com/) | 當「資料庫＋Google 登入」的後台；所有帳號、設定都存在這裡 |
+| [Vercel](https://vercel.com/) | 當「網站主機」；把 GitHub 上的程式自動架成網站（只在本機跑的話可以先跳過） |
+
+### 第 2 步：把程式搬到自己名下
+
+1. 開啟本專案頁面，按 **Fork**，選自己的 GitHub 帳號。
+2. 在電腦上把 fork 出來的 repo clone 下來，執行 `npm install`。
+
+### 第 3 步：去 Firebase 開一間「虛擬機房」
+
+1. Firebase Console → **新增專案**（名字隨意）。
+2. 啟用 **Google 登入**（Authentication → Sign-in method → Google）。
+3. 新增 **Web 應用程式**，複製一串設定（API Key 等 6 個 `NEXT_PUBLIC_*`）。
+4. 下載**服務帳號私鑰**（專案設定 → 服務帳號 → 產生新的私鑰）。
+5. 把 Firestore 安全規則設成本 repo 的 `firestore.rules`（預設不給瀏覽器直接讀寫，比較安全）。
+
+### 第 4 步：填環境變數（把第 3 步拿到的東西貼進去）
+
+```bash
+cp .env.example .env.local
+```
+
+編輯 `.env.local`，至少填好：
+
+- Firebase 的 6 個 `NEXT_PUBLIC_*`（第 3 步）
+- `SESSION_SECRET`（亂數字串，可用 `openssl rand -base64 32`）
+- `FIREBASE_SERVICE_ACCOUNT_KEY`（第 3 步下載的私鑰，整段 JSON 貼上）
+- `ALLOW_BOOTSTRAP_ADMIN=true`（**只**為了建立第一個管理員，之後要改回 false）
+
+欄位細節見下方「環境變數」。
+
+### 第 5 步：本機跑起來、開出第一個管理員
+
+```bash
+npm run dev
+```
+
+瀏覽器開 `http://localhost:3000/setup` → 填資料建立**管理員** → 回首頁用這組帳號登入。  
+成功後把 `ALLOW_BOOTSTRAP_ADMIN` 改回 `false` 並重啟，避免日後有人免驗證建管。
+
+### 第 6 步（可選）：補一點測試資料
+
+管理員登入後，環境變數填 `SEED_*` 三項，存取 `/api/seed-roles`，會自動建學生／家長／教職員範本帳號。
+
+### 第 7 步：上線到 Vercel
+
+1. 回 GitHub，到 Vercel **Import** 你 fork 的 repo。
+2. 把 `.env.local` 裡的變數全部抄到 Vercel 的 Environment Variables。
+3. Deploy，拿到網址就能開玩。  
+   （若 Google 登入被擋，去 Firebase → Authentication → 設定 → **授權的網域** 加上你的網址。）
+
+### 一張圖看完
+
+```text
+開 3 個帳號 ── Fork 到 GitHub ── clone + npm install
+       │                                │
+       ▼                                ▼
+  Firebase 建專案                 填 .env.local
+  （Google 登入、私鑰、            （設定 + session 金鑰）
+   Firestore 規則）                       │
+       │                                ▼
+       └──────────────► npm run dev → /setup 建管理員
+                                         │
+                                         ▼
+                              （可選）種子測試帳號
+                                         │
+                                         ▼
+                              Vercel Import → 填環境變數 → 上線
+```
+
+以下為較細的技術說明與指令。
+
 ## 技術架構
 
 | 項目 | 技術 |

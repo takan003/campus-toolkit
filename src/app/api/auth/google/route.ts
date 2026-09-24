@@ -26,12 +26,23 @@ export async function POST(request: NextRequest) {
     let email: string | undefined;
     try {
       const decoded = await getAdminAuth().verifyIdToken(String(idToken));
+      if (decoded.email_verified !== true) {
+        return NextResponse.json(
+          { success: false, message: "Google 電子郵件未經驗證" },
+          { status: 401 }
+        );
+      }
+      if (decoded.firebase?.sign_in_provider !== "google.com") {
+        return NextResponse.json(
+          { success: false, message: "僅支援 Google 帳號登入" },
+          { status: 401 }
+        );
+      }
       email = decoded.email?.toLowerCase().trim();
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      console.error("verifyIdToken failed:", msg);
+      console.error("verifyIdToken failed:", error);
       return NextResponse.json(
-        { success: false, message: `Google token 驗證失敗：${msg.slice(0, 300)}` },
+        { success: false, message: "Google 登入驗證失敗" },
         { status: 401 }
       );
     }

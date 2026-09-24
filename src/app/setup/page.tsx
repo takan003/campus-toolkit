@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function SetupPage() {
   const [email, setEmail] = useState("");
@@ -11,6 +11,22 @@ export default function SetupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [available, setAvailable] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/admin/create")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled) setAvailable(Boolean(data.available));
+      })
+      .catch(() => {
+        if (!cancelled) setAvailable(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSubmit() {
     setError("");
@@ -56,6 +72,20 @@ export default function SetupPage() {
       setError("系統錯誤，請稍後再試");
       setLoading(false);
     }
+  }
+
+  if (available === false) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-page px-4">
+        <div className="w-full max-w-md text-center">
+          <h1 className="text-3xl font-bold mb-2">數位校園工具箱</h1>
+          <p className="text-t3">初始設定已停用</p>
+          <a href="/" className="inline-block mt-6 underline">
+            返回首頁
+          </a>
+        </div>
+      </div>
+    );
   }
 
   return (

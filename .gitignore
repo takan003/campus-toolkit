@@ -30,6 +30,10 @@ start-server.log
 .env
 vercel-firebase-key.txt
 vercel-firebase-key-oneline.json
+*firebase*key*
+*.p12
+*.pfx
+serviceAccount*.json
 
 # vercel
 .vercel

@@ -8,6 +8,18 @@ import { assertSameOrigin } from "@/lib/csrf";
 import { clampCostFactor, normalizeEmail, normalizeAccount, isStrongPassword } from "@/lib/validation";
 import { serverErrorMessage } from "@/lib/api-error";
 
+/** 供 /setup 判斷是否仍可建立首任管理員（不揭露環境變數名稱） */
+export async function GET() {
+  try {
+    const existingCount = (await getAdminDb().collection("admins").count().get()).data().count;
+    const available = existingCount === 0 && process.env.ALLOW_BOOTSTRAP_ADMIN === "true";
+    return NextResponse.json({ success: true, available });
+  } catch (error) {
+    console.error("Admin create status error:", error);
+    return NextResponse.json({ success: false, available: false }, { status: 500 });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const originDenied = assertSameOrigin(request);
@@ -25,11 +37,12 @@ export async function POST(request: NextRequest) {
     const adminsRef = getAdminDb().collection("admins");
     const existingCount = (await adminsRef.count().get()).data().count;
     const isBootstrap = existingCount === 0;
+    const bootstrapEnabled = process.env.ALLOW_BOOTSTRAP_ADMIN === "true";
 
     // Bootstrap（首任管理員）需顯式開啟，避免資料被清空後免驗證建管
-    if (isBootstrap && process.env.ALLOW_BOOTSTRAP_ADMIN !== "true") {
+    if (isBootstrap && !bootstrapEnabled) {
       return NextResponse.json(
-        { success: false, message: "初始管理員建立已停用（ALLOW_BOOTSTRAP_ADMIN 未啟用）" },
+        { success: false, message: "初始管理員建立已停用" },
         { status: 403 }
       );
     }
@@ -80,7 +93,31 @@ export async function POST(request: NextRequest) {
       createdAt: Date.now(),
     };
 
-    const docRef = await adminsRef.add(newAdmin);
+    let docRef;
+    if (isBootstrap) {
+      // Transaction：再次確認仍無管理員才寫入，避免並發重複建管
+      try {
+        docRef = await getAdminDb().runTransaction(async (tx) => {
+          const snap = await tx.get(adminsRef.limit(1));
+          if (!snap.empty) {
+            throw new Error("BOOTSTRAP_ALREADY_DONE");
+          }
+          const ref = adminsRef.doc();
+          tx.set(ref, newAdmin);
+          return ref;
+        });
+      } catch (txError) {
+        if (txError instanceof Error && txError.message === "BOOTSTRAP_ALREADY_DONE") {
+          return NextResponse.json(
+            { success: false, message: "建立失敗，管理員可能已存在" },
+            { status: 409 }
+          );
+        }
+        throw txError;
+      }
+    } else {
+      docRef = await adminsRef.add(newAdmin);
+    }
 
     await logActivity({
       userId: session?.uid,

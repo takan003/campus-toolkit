@@ -149,7 +149,7 @@ npm run dev
 ## Firebase 專案設定
 
 1. **建立專案**：Firebase Console 新增專案（Analytics 可關）。
-2. **啟用 Google 登入**：Authentication → Sign-in method → 啟用 **Google**。
+2. **啟用 Google 登入**：Authentication → Sign-in method → 啟用 **Google**，並**關閉** Email/Password、匿名等其他登入方式（伺服端只接受 `sign_in_provider === "google.com"` 且 `email_verified` 的 token）。
 3. **建立 Web 應用程式**：專案設定 → 一般 → 新增 Web 應用，將設定貼入 `.env.local` 的 `NEXT_PUBLIC_*`。
 4. **服務帳號金鑰**：專案設定 → 服務帳號 → 產生新的私鑰（下載 JSON），整段貼入 `FIREBASE_SERVICE_ACCOUNT_KEY`（或先 base64 編碼再貼）。
 5. **部署 Firestore 規則**：本 repo 的 [`firestore.rules`](firestore.rules) 預設**拒絕所有客戶端讀寫**（資料只走伺服端 Admin SDK），請部署：

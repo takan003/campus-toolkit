@@ -29,6 +29,12 @@ type PenProjectile = {
   resolved: boolean;
 };
 
+type Celebration = {
+  text: string;
+  ttlMs: number;
+  durationMs: number;
+};
+
 type RuntimeState = {
   running: boolean;
   width: number;
@@ -42,6 +48,7 @@ type RuntimeState = {
   moveUp: boolean;
   moveDown: boolean;
   projectile: PenProjectile;
+  celebration: Celebration | null;
 };
 
 type GamePhase = "select" | "playing" | "finished";
@@ -75,6 +82,8 @@ const CONFIG = {
   projectileSpeed: 490,
   // 可調參數區：筆旋轉速度（弧度/秒）
   projectileSpinSpeed: 8.4,
+  // 可調參數區：多連擊成語顯示時間（毫秒）
+  celebrationDurationMs: 1600,
   // 可調參數區：右側筆活動區寬度比例
   playerZoneRatio: 0.2,
   // 可調參數區：左側考卷掉落區寬度比例
@@ -217,6 +226,22 @@ function playHit(audioCtx: AudioContext | null): void {
   });
 }
 
+// 單支筆一次命中多份試卷時顯示的成語（同數量有多句時亂數取一句）
+const CELEBRATION_IDIOMS: Record<number, readonly string[]> = {
+  2: ["融會貫通", "觸類旁通", "左右逢源"],
+  3: ["妙筆生花", "下筆成章"],
+  4: ["信手拈來", "文思泉湧"],
+  5: ["一揮而就", "滿腹經綸"],
+};
+const CELEBRATION_MAX_HIT = 6;
+
+function pickCelebration(hits: number): string {
+  if (hits >= CELEBRATION_MAX_HIT) return "無敵鐵金剛";
+  const pool = CELEBRATION_IDIOMS[hits];
+  if (!pool || pool.length === 0) return "";
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 const PAPER_SVG_D = "M4 2h16l8 8v28H4zM20 2v8h8";
 const PEN_SVG_D =
   "M3 17.5l1.8-5.3 9.4-9.4 3.5 3.5-9.4 9.4-5.3 1.8zM12 5l3.5 3.5M4.8 12.2l3.5 3.5";
@@ -290,6 +315,7 @@ function createRuntime(width: number, height: number, selectedSubjects: Subject[
       hitsThisShot: 0,
       resolved: false,
     },
+    celebration: null,
   };
 }
 
@@ -585,6 +611,15 @@ export default function HomepageCornerExam() {
           (paper) => runtime.scores[paper.subject] < CONFIG.maxScorePerSubject
         );
 
+        // 單支筆命中 ≥2 份試卷：畫面顯示對應成語（同數量有多句時亂數取一句）
+        if (projectile.hitsThisShot >= 2) {
+          runtime.celebration = {
+            text: pickCelebration(projectile.hitsThisShot),
+            ttlMs: CONFIG.celebrationDurationMs,
+            durationMs: CONFIG.celebrationDurationMs,
+          };
+        }
+
         const allCapped = runtime.selectedSubjects.every(
           (subject) => runtime.scores[subject] >= CONFIG.maxScorePerSubject
         );
@@ -601,6 +636,13 @@ export default function HomepageCornerExam() {
           setPensLeft(pensRef.current);
         }
         resolveShot();
+      }
+    }
+
+    if (runtime.celebration) {
+      runtime.celebration.ttlMs -= dt * 1000;
+      if (runtime.celebration.ttlMs <= 0) {
+        runtime.celebration = null;
       }
     }
 
@@ -624,6 +666,28 @@ export default function HomepageCornerExam() {
       ctx.translate(cx, cy);
       ctx.rotate(projectile.angle);
       drawPen(ctx, -projectile.width / 2, -projectile.height / 2, projectile.width, projectile.height);
+      ctx.restore();
+    }
+
+    const celebration = runtime.celebration;
+    if (celebration) {
+      const ttl = Math.max(0, celebration.ttlMs);
+      const progress = 1 - ttl / celebration.durationMs;
+      const fadeMs = Math.min(500, celebration.durationMs);
+      const alpha = ttl > fadeMs ? 1 : ttl / fadeMs;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.font = `bold ${Math.max(28, Math.round(runtime.width * 0.07))}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = "#ffffff";
+      ctx.fillStyle = "#111111";
+      const cx = runtime.width / 2;
+      const cy = runtime.height * 0.3 - progress * 14;
+      ctx.strokeText(celebration.text, cx, cy);
+      ctx.fillText(celebration.text, cx, cy);
       ctx.restore();
     }
 

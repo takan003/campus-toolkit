@@ -9,6 +9,7 @@ import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
 import HomepageCornerWrench from "@/components/HomepageCornerWrench";
 import HomepageCornerChangE from "@/components/HomepageCornerChangE";
+import HomepageCornerExam from "@/components/HomepageCornerExam";
 
 const accountModule = {
   icon: (
@@ -71,6 +72,7 @@ export default function RoleHome({ role }: { role: Exclude<UserRole, "admin"> })
     <div className="min-h-screen flex flex-col items-center bg-page px-4 pt-[20px]">
       <HomepageCornerWrench />
       <HomepageCornerChangE />
+      <HomepageCornerExam />
       <div className="text-center mb-2">
         <h1 className="text-4xl font-bold mb-2">{settings.systemName || "數位校園工具箱"}</h1>
         <p className="text-xl text-t2">{settings.schoolFullName || "學校名稱"}</p>

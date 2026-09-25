@@ -904,13 +904,22 @@ export default function HomepageCornerExam() {
               </div>
             ) : (
               <>
-                <div className="sm:hidden mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded border border-black bg-white px-2.5 py-1 pr-16 font-mono text-xs text-black">
+                {/* 遊戲資訊狀態列：所有尺寸共用，獨立一行置於畫布上方（寬度上限與畫布一致，同步置中） */}
+                <div className="mx-auto mb-1.5 w-full max-w-[calc((100dvh_-_9rem)*16/9)] flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded border border-black bg-white px-2.5 py-1 pr-20 font-mono text-xs sm:text-sm text-black">
                   <span className="shrink-0">級分 {totalScore}/{maxScore}</span>
                   <span className="shrink-0">筆 {pensLeft}</span>
                   <span className="shrink-0">達成率 {currentRate}%</span>
                   <span className="min-w-0 max-w-full truncate">
                     {startedSubjects.map((subject) => `${subject} ${subjectScores[subject]}`).join(" / ")}
                   </span>
+                  <span className="min-w-0 max-w-full truncate">
+                    玩家 {playerName}
+                    {!playerRanked && "（不列入排行榜）"}
+                  </span>
+                  {bestRate !== null && <span className="shrink-0">本機最高 {bestRate}%</span>}
+                  {playerRanked && (
+                    <span className="shrink-0">榜上紀錄 {remoteBestRate !== null ? `${remoteBestRate}%` : "—"}</span>
+                  )}
                 </div>
 
                 <canvas
@@ -922,30 +931,9 @@ export default function HomepageCornerExam() {
                   onPointerMove={handlePointerMove}
                   onPointerUp={handlePointerUp}
                   onPointerCancel={handlePointerCancel}
-                  className="w-full h-auto max-h-[82vh] max-w-[calc((100dvh_-_7rem)*16/9)] mx-auto border border-slate-500 bg-[#f9f9f9] outline-none touch-none cursor-crosshair"
+                  className="w-full h-auto max-h-[82vh] max-w-[calc((100dvh_-_9rem)*16/9)] mx-auto border border-slate-500 bg-[#f9f9f9] outline-none touch-none cursor-crosshair"
                   aria-label="學測滿級分互動畫布"
                 />
-
-                <div className="hidden sm:block pointer-events-none absolute left-3 top-3 text-black font-mono text-sm sm:text-base">
-                  <div>
-                    玩家: {playerName}
-                    {!playerRanked && "（不列入排行榜）"}
-                  </div>
-                  <div>總級分: {totalScore} / {maxScore}</div>
-                  <div>達成率: {currentRate}%</div>
-                  <div>筆數: {pensLeft}</div>
-                  {bestRate !== null && <div>本機最高達成率: {bestRate}%</div>}
-                  {playerRanked && (
-                    <div>榜上紀錄: {remoteBestRate !== null ? `${remoteBestRate}%` : "—"}</div>
-                  )}
-                  <div className="mt-1 grid grid-cols-2 gap-x-3 text-xs">
-                    {startedSubjects.map((subject) => (
-                      <div key={subject}>
-                        {subject}: {subjectScores[subject]}/{CONFIG.maxScorePerSubject}
-                      </div>
-                    ))}
-                  </div>
-                </div>
 
                 {phase === "finished" && (
                   <div className="fixed inset-0 flex items-start justify-center overflow-y-auto bg-white/80 p-3">

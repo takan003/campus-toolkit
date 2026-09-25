@@ -18,6 +18,8 @@ type ChangEProjectile = {
   width: number;
   height: number;
   speed: number;
+  angle: number;
+  spinSpeed: number;
   hitsThisShot: number;
   resolved: boolean;
 };
@@ -29,6 +31,7 @@ type RuntimeState = {
   elapsedMs: number;
   moons: FallingMoon[];
   spawnAccumulator: number;
+  flightCount: number;
   playerY: number;
   moveUp: boolean;
   moveDown: boolean;
@@ -58,6 +61,14 @@ const CONFIG = {
   moveSpeed: 290,
   // 可調參數區：嫦娥飛行速度（像素/秒）
   projectileSpeed: 490,
+  // 可調參數區：嫦娥比照板手的旋轉速度（弧度/秒）
+  projectileSpinSpeed: 8.4,
+  // 可調參數區：開始以亂數判定旋轉的第幾次飛出（含）
+  spinFlightCountMin: 15,
+  // 可調參數區：結束以亂數判定旋轉的第幾次飛出（含）
+  spinFlightCountMax: 20,
+  // 可調參數區：判定期間每飛出一次的逆時針旋轉機率（0–1）
+  spinChance: 0.5,
   // 可調參數區：嫦娥飛行時上下飄動幅度（像素）
   bobAmplitude: 10,
   // 可調參數區：嫦娥飛行時上下飄動速度（弧度/秒）
@@ -218,6 +229,7 @@ function createRuntime(width: number, height: number): RuntimeState {
     elapsedMs: 0,
     moons: [],
     spawnAccumulator: 0,
+    flightCount: 0,
     playerY: Math.round(height * 0.5),
     moveUp: false,
     moveDown: false,
@@ -228,6 +240,8 @@ function createRuntime(width: number, height: number): RuntimeState {
       width: 96,
       height: 60,
       speed: CONFIG.projectileSpeed,
+      angle: 0,
+      spinSpeed: 0,
       hitsThisShot: 0,
       resolved: false,
     },
@@ -435,11 +449,18 @@ export default function HomepageCornerChangE() {
 
     const x = Math.floor(runtime.width * (1 - CONFIG.playerZoneRatio / 2));
     const y = Math.round(runtime.playerY - projectile.height / 2);
+    runtime.flightCount += 1;
+    const shouldSpin =
+      runtime.flightCount >= CONFIG.spinFlightCountMin &&
+      runtime.flightCount <= CONFIG.spinFlightCountMax &&
+      Math.random() < CONFIG.spinChance;
     runtime.projectile = {
       ...projectile,
       active: true,
       x,
       y,
+      angle: 0,
+      spinSpeed: shouldSpin ? -CONFIG.projectileSpinSpeed : 0,
       hitsThisShot: 0,
       resolved: false,
     };
@@ -492,6 +513,7 @@ export default function HomepageCornerChangE() {
       Math.sin((runtime.elapsedMs / 1000) * CONFIG.idleBobAngularSpeed) * CONFIG.idleBobAmplitude;
     if (projectile.active) {
       projectile.x -= projectile.speed * dt;
+      projectile.angle += projectile.spinSpeed * dt;
 
       const projectileBox = {
         x: projectile.x,
@@ -529,13 +551,19 @@ export default function HomepageCornerChangE() {
     if (!projectile.active) {
       drawChangE(ctx, playerX, playerY + idleBobOffset, playerWidth, playerHeight);
     } else {
+      ctx.save();
+      const cx = projectile.x + projectile.width / 2;
+      const cy = projectile.y + bobOffset + projectile.height / 2;
+      ctx.translate(cx, cy);
+      ctx.rotate(projectile.angle);
       drawChangE(
         ctx,
-        projectile.x,
-        projectile.y + bobOffset,
+        -projectile.width / 2,
+        -projectile.height / 2,
         projectile.width,
         projectile.height
       );
+      ctx.restore();
     }
 
     frameRef.current = window.requestAnimationFrame(tick);

@@ -399,7 +399,9 @@ export default function HomepageCornerExam() {
   const startGame = useCallback((subjects: Subject[]) => {
     if (subjects.length === 0) return;
     const ordered = SUBJECTS.filter((subject) => subjects.includes(subject));
-    runtimeRef.current = createRuntime(960, 540, ordered);
+    const runtime = createRuntime(960, 540, ordered);
+    runtime.running = true;
+    runtimeRef.current = runtime;
     scoreRef.current = createEmptyScores();
     setSubjectScores(createEmptyScores());
     pensRef.current = CONFIG.startingPens;

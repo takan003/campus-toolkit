@@ -32,6 +32,7 @@ type RuntimeState = {
   moons: FallingMoon[];
   spawnAccumulator: number;
   flightCount: number;
+  nextSpinFlightCount: number;
   playerY: number;
   moveUp: boolean;
   moveDown: boolean;
@@ -63,12 +64,10 @@ const CONFIG = {
   projectileSpeed: 490,
   // 可調參數區：嫦娥比照板手的旋轉速度（弧度/秒）
   projectileSpinSpeed: 8.4,
-  // 可調參數區：開始以亂數判定旋轉的第幾次飛出（含）
-  spinFlightCountMin: 15,
-  // 可調參數區：結束以亂數判定旋轉的第幾次飛出（含）
-  spinFlightCountMax: 20,
-  // 可調參數區：判定期間每飛出一次的逆時針旋轉機率（0–1）
-  spinChance: 0.5,
+  // 可調參數區：兩次旋轉之間最少飛出次數
+  spinIntervalMin: 15,
+  // 可調參數區：兩次旋轉之間最多飛出次數
+  spinIntervalMax: 20,
   // 可調參數區：嫦娥飛行時上下飄動幅度（像素）
   bobAmplitude: 10,
   // 可調參數區：嫦娥飛行時上下飄動速度（弧度/秒）
@@ -89,6 +88,11 @@ const CONFIG = {
   // 可調參數區：最高分 localStorage 鍵名
   bestScoreKey: "campus-toolkit-chang-e-best-score",
 };
+
+function createSpinInterval(): number {
+  const range = CONFIG.spinIntervalMax - CONFIG.spinIntervalMin + 1;
+  return CONFIG.spinIntervalMin + Math.floor(Math.random() * range);
+}
 
 function loadBestScore(): number | null {
   try {
@@ -230,6 +234,7 @@ function createRuntime(width: number, height: number): RuntimeState {
     moons: [],
     spawnAccumulator: 0,
     flightCount: 0,
+    nextSpinFlightCount: createSpinInterval(),
     playerY: Math.round(height * 0.5),
     moveUp: false,
     moveDown: false,
@@ -450,10 +455,11 @@ export default function HomepageCornerChangE() {
     const x = Math.floor(runtime.width * (1 - CONFIG.playerZoneRatio / 2));
     const y = Math.round(runtime.playerY - projectile.height / 2);
     runtime.flightCount += 1;
-    const shouldSpin =
-      runtime.flightCount >= CONFIG.spinFlightCountMin &&
-      runtime.flightCount <= CONFIG.spinFlightCountMax &&
-      Math.random() < CONFIG.spinChance;
+    const shouldSpin = runtime.flightCount >= runtime.nextSpinFlightCount;
+    if (shouldSpin) {
+      runtime.flightCount = 0;
+      runtime.nextSpinFlightCount = createSpinInterval();
+    }
     runtime.projectile = {
       ...projectile,
       active: true,

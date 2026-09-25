@@ -819,9 +819,10 @@ export default function HomepageCornerExam() {
         </svg>
       </button>
 
+      {/* 行動裝置小螢幕：外層可垂直捲動，內容用 my-auto 安全置中，避免超出畫面時上下被裁切 */}
       {open && (
-        <div className="fixed inset-0 z-[90] bg-black/50 flex items-center justify-center px-3 py-4">
-          <div className="relative w-full max-w-[1020px] mx-auto">
+        <div className="fixed inset-0 z-[90] bg-black/50 flex items-start justify-center overflow-y-auto px-3 py-4">
+          <div className="relative w-full max-w-[1020px] mx-auto my-auto">
             <button
               type="button"
               title="關閉（Esc）"
@@ -921,7 +922,7 @@ export default function HomepageCornerExam() {
                   onPointerMove={handlePointerMove}
                   onPointerUp={handlePointerUp}
                   onPointerCancel={handlePointerCancel}
-                  className="w-full h-auto max-h-[82vh] border border-slate-500 bg-[#f9f9f9] outline-none touch-none cursor-crosshair"
+                  className="w-full h-auto max-h-[82vh] max-w-[calc((100dvh_-_7rem)*16/9)] mx-auto border border-slate-500 bg-[#f9f9f9] outline-none touch-none cursor-crosshair"
                   aria-label="學測滿級分互動畫布"
                 />
 
@@ -947,8 +948,8 @@ export default function HomepageCornerExam() {
                 </div>
 
                 {phase === "finished" && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                    <div className="w-[88%] max-w-[460px] rounded border border-black bg-white px-6 py-7 text-center text-black">
+                  <div className="fixed inset-0 flex items-start justify-center overflow-y-auto bg-white/80 p-3">
+                    <div className="my-auto w-[88%] max-w-[460px] rounded border border-black bg-white px-6 py-7 text-center text-black">
                       <h2 className="text-2xl font-bold mb-2">
                         {finishReason === "full" ? "滿級分！" : "筆數耗盡"}
                       </h2>
@@ -1014,8 +1015,8 @@ export default function HomepageCornerExam() {
             )}
 
             {showBoard && (
-              <div className="absolute inset-0 z-[95] flex items-center justify-center bg-white/90 px-3">
-                <div className="w-full max-w-[480px] max-h-[86%] overflow-auto rounded border border-black bg-white p-4 text-black">
+              <div className="fixed inset-0 z-[95] flex items-start justify-center overflow-y-auto bg-white/90 p-3">
+                <div className="my-auto w-full max-w-[480px] max-h-[86%] overflow-auto rounded border border-black bg-white p-4 text-black">
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-lg font-bold">學測滿級分排行榜 TOP 100</h3>
                     <button

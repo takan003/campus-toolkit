@@ -219,7 +219,7 @@ function playHit(audioCtx: AudioContext | null): void {
 
 const PAPER_SVG_D = "M4 2h16l8 8v28H4zM20 2v8h8";
 const PEN_SVG_D =
-  "M3 17.5l1.8-5.3 9.4-9.4 3.5 3.5-9.4 9.4-5.3 1.8zM12.4 5.9l3.5 3.5M5.8 13.5l3.5 3.5";
+  "M3 17.5l1.8-5.3 9.4-9.4 3.5 3.5-9.4 9.4-5.3 1.8zM12 5l3.5 3.5M4.8 12.2l3.5 3.5";
 
 function drawPaper(ctx: CanvasRenderingContext2D, paper: FallingPaper) {
   if (typeof Path2D === "undefined") return;
@@ -255,11 +255,11 @@ function drawPen(ctx: CanvasRenderingContext2D, x: number, y: number, width: num
   ctx.rotate(Math.PI / 4);
   ctx.scale(scale, scale);
   ctx.translate(-12, -12);
-  ctx.fillStyle = "#fde68a";
+  ctx.fillStyle = "#ffffff";
   ctx.strokeStyle = "#111111";
-  ctx.lineWidth = 1.8;
+  ctx.lineWidth = 1.1;
   ctx.lineJoin = "round";
-  ctx.lineCap = "round";
+  ctx.lineCap = "butt";
   ctx.fill(path);
   ctx.stroke(path);
   ctx.restore();
@@ -492,7 +492,8 @@ export default function HomepageCornerExam() {
       x,
       y,
       angle: 0,
-      spinSpeed: CONFIG.projectileSpinSpeed,
+      // 負值＝逆時針旋轉（畫布 y 軸朝下，角度遞減即為逆時針）
+      spinSpeed: -CONFIG.projectileSpinSpeed,
       hitsThisShot: 0,
       resolved: false,
     };

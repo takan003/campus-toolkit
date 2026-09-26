@@ -68,6 +68,12 @@ export interface PasswordResetMailOptions {
   to: string;
   /** 收件人顯示名稱，可為空 */
   displayName?: string;
+  /**
+   * 本次要重設的身分（學生／家長／教職員／管理員）。
+   * 同一信箱可能同時存在多個身分（種子帳號即共用一個信箱），
+   * 信件列出身分讓收件人確認這封信要重設的是哪個帳號。
+   */
+  roleLabel?: string;
   /** 一次性重設連結（含 token） */
   resetUrl: string;
   /** 有效期限（分鐘） */
@@ -89,9 +95,21 @@ export async function sendPasswordResetEmail(
   const resetUrl = escapeHtml(options.resetUrl);
   const expiresMinutes = escapeHtml(String(options.expiresMinutes));
 
+  // 身分列（未提供時整個區塊不出現，純文字與 HTML 同步）
+  const roleText = options.roleLabel
+    ? [`本次重設的身分：${options.roleLabel}`, ""]
+    : [];
+  const roleBox = options.roleLabel
+    ? `    <div style="margin:0 0 20px;padding:10px 14px;background:#f3f4f6;border-radius:8px;font-size:14px;color:#374151;">
+      本次重設的身分：<strong style="color:#111827;">${escapeHtml(options.roleLabel)}</strong>
+    </div>
+`
+    : "";
+
   const text = [
     `${greeting}：`,
     "",
+    ...roleText,
     `我們收到 ${siteName} 的密碼重設請求。`,
     `請在 ${options.expiresMinutes} 分鐘內點擊以下連結設定新密碼：`,
     options.resetUrl,
@@ -108,7 +126,7 @@ export async function sendPasswordResetEmail(
     <h1 style="margin:0 0 4px;font-size:20px;">${escapeHtml(siteName)}</h1>
     <p style="margin:0 0 20px;font-size:14px;color:#6b7280;">密碼重設信件</p>
     <p style="margin:0 0 16px;font-size:15px;">${escapeHtml(greeting)}：</p>
-    <p style="margin:0 0 24px;font-size:15px;line-height:1.7;">
+${roleBox}    <p style="margin:0 0 24px;font-size:15px;line-height:1.7;">
       我們收到您的密碼重設請求。請在 <strong>${expiresMinutes} 分鐘</strong>內點擊下方按鈕設定新密碼。
     </p>
     <p style="margin:0 0 24px;">

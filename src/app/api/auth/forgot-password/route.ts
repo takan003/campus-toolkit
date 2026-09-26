@@ -14,7 +14,7 @@ import {
 } from "@/lib/password-reset";
 import { isMailConfigured, sendPasswordResetEmail } from "@/lib/mailer";
 import { getSiteName } from "@/lib/settings-server";
-import { ROLE_COLLECTIONS, UserRole } from "@/types/users";
+import { isUserRole, ROLE_COLLECTIONS, ROLE_LABELS, UserRole } from "@/types/users";
 import { serverErrorMessage } from "@/lib/api-error";
 
 const ROLES: UserRole[] = ["student", "parent", "staff", "admin"];
@@ -48,13 +48,24 @@ function buildResetUrl(token: string, request: NextRequest): string {
   return new URL(path, request.url).toString();
 }
 
-async function findUserByEmail(email: string): Promise<{
+async function findUserByEmail(
+  email: string,
+  preferredRole?: UserRole
+): Promise<{
   uid: string;
   role: UserRole;
   displayName: string;
 } | null> {
   const db = getAdminDb();
-  for (const role of ROLES) {
+  // 優先查使用者在忘記密碼頁選擇的身分，其餘身分作為後備：
+  // 同一信箱可能同時存在於多個身分（種子帳號三種身分共用一個信箱），
+  // 若不看選擇，永遠依 student → parent → staff 順序命中第一個，
+  // 導致問候語稱謂錯誤、且 token 記錯 role（重設會改到別的帳號）。
+  const order: UserRole[] = preferredRole
+    ? [preferredRole, ...ROLES.filter((r) => r !== preferredRole)]
+    : ROLES;
+
+  for (const role of order) {
     const snap = await db
       .collection(ROLE_COLLECTIONS[role])
       .where("email", "==", email)
@@ -91,7 +102,7 @@ export async function POST(request: NextRequest) {
     );
     if (limited) return limited;
 
-    let body: { email?: unknown };
+    let body: { email?: unknown; role?: unknown };
     try {
       body = await request.json();
     } catch {
@@ -130,7 +141,10 @@ export async function POST(request: NextRequest) {
     }
 
     const siteName = await getSiteName();
-    const user = await findUserByEmail(email);
+    // 使用者選擇的身分僅用來決定「先查哪個 collection」；
+    // 未提供或非法值時維持原本的查找順序，對外回覆一律相同（不構成枚舉管道）
+    const requestedRole = isUserRole(body.role) ? body.role : undefined;
+    const user = await findUserByEmail(email, requestedRole);
 
     if (user) {
       const { token, expiresAt } = await createPasswordResetToken(
@@ -147,6 +161,7 @@ export async function POST(request: NextRequest) {
         await sendPasswordResetEmail({
           to: email,
           displayName: user.displayName,
+          roleLabel: ROLE_LABELS[user.role],
           resetUrl: buildResetUrl(token, request),
           expiresMinutes: PASSWORD_RESET_TTL_MINUTES,
           siteName,
@@ -156,7 +171,7 @@ export async function POST(request: NextRequest) {
           role: user.role,
           action: "password_reset_requested",
           ip,
-          details: `已寄出密碼重設信件，有效期 ${PASSWORD_RESET_TTL_MINUTES} 分鐘`,
+          details: `已寄出密碼重設信件（${ROLE_LABELS[user.role]}），有效期 ${PASSWORD_RESET_TTL_MINUTES} 分鐘`,
         });
       } catch (error) {
         // 細節只留伺服器 log；對外仍回統一訊息，避免寄信失敗差異成為枚舉管道

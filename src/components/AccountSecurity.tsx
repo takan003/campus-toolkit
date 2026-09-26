@@ -7,6 +7,7 @@ import { UserRole, ROLE_LABELS, ROLE_SPECIFIC_FIELDS } from "@/types/users";
 import { fetchSession, logout } from "@/lib/session";
 import { isStrongPassword, PASSWORD_REQUIREMENT_MESSAGE } from "@/lib/validation";
 import Copyright from "@/components/Copyright";
+import AdSense from "@/components/AdSense";
 
 export default function AccountSecurityPage({
   role,
@@ -224,6 +225,13 @@ export default function AccountSecurityPage({
       </form>
 
       {children}
+
+      {/* 廣告區域 */}
+      {settings.sponsorAdEnabled && (
+        <div className="w-full max-w-2xl mt-8">
+          <AdSense />
+        </div>
+      )}
 
       <div className="w-full max-w-2xl mt-auto">
         <Copyright mode={settings.copyrightNotice ? "啟用" : "關閉"} />

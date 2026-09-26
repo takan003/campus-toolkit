@@ -7,6 +7,7 @@ import { isStrongPassword, PASSWORD_REQUIREMENT_MESSAGE } from "@/lib/validation
 import { setCachedSession, UserSession } from "@/lib/session";
 import { Settings, defaultSettings } from "@/types/settings";
 import Copyright from "@/components/Copyright";
+import AdSense from "@/components/AdSense";
 import HomepageCornerWrench from "@/components/HomepageCornerWrench";
 import HomepageCornerChangE from "@/components/HomepageCornerChangE";
 import HomepageCornerExam from "@/components/HomepageCornerExam";
@@ -510,6 +511,13 @@ function ResetPasswordForm() {
       <div className="w-full max-w-md border border-themed rounded-lg p-8">
         {renderContent()}
       </div>
+
+      {/* 廣告區域 */}
+      {settings.sponsorAdEnabled && (
+        <div className="w-full max-w-md mt-8">
+          <AdSense />
+        </div>
+      )}
 
       <div className="w-full max-w-md mt-8">
         <Copyright mode={settings.copyrightNotice ? "啟用" : "關閉"} />

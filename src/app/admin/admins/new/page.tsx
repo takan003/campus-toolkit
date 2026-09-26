@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { isStrongPassword, PASSWORD_REQUIREMENT_MESSAGE } from "@/lib/validation";
+import { Settings, defaultSettings } from "@/types/settings";
+import AdSense from "@/components/AdSense";
 
 export default function NewAdminPage() {
   const router = useRouter();
@@ -14,6 +16,22 @@ export default function NewAdminPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/settings", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.success && data.settings) {
+          setSettings({ ...defaultSettings, ...data.settings });
+        }
+      })
+      .catch((err) => console.error("載入設定失敗:", err));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSubmit() {
     setError("");
@@ -145,6 +163,13 @@ export default function NewAdminPage() {
           </button>
         </div>
       </div>
+
+      {/* 廣告區域 */}
+      {settings.sponsorAdEnabled && (
+        <div className="mt-8">
+          <AdSense />
+        </div>
+      )}
     </div>
   );
 }

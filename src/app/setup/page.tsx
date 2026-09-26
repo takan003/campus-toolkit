@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { isStrongPassword, PASSWORD_REQUIREMENT_MESSAGE } from "@/lib/validation";
+import { Settings, defaultSettings } from "@/types/settings";
+import AdSense from "@/components/AdSense";
 
 export default function SetupPage() {
   const [email, setEmail] = useState("");
@@ -13,6 +15,22 @@ export default function SetupPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/settings", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.success && data.settings) {
+          setSettings({ ...defaultSettings, ...data.settings });
+        }
+      })
+      .catch((err) => console.error("載入設定失敗:", err));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -162,6 +180,13 @@ export default function SetupPage() {
             {loading ? "建立中..." : "建立管理員"}
           </button>
         </div>
+
+        {/* 廣告區域 */}
+        {settings.sponsorAdEnabled && (
+          <div className="mt-8">
+            <AdSense />
+          </div>
+        )}
       </div>
     </div>
   );

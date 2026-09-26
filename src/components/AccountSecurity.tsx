@@ -8,7 +8,13 @@ import { fetchSession, logout } from "@/lib/session";
 import { isStrongPassword, PASSWORD_REQUIREMENT_MESSAGE } from "@/lib/validation";
 import Copyright from "@/components/Copyright";
 
-export default function AccountSecurityPage({ role }: { role: Exclude<UserRole, "admin"> }) {
+export default function AccountSecurityPage({
+  role,
+  children,
+}: {
+  role: UserRole;
+  children?: React.ReactNode;
+}) {
   const router = useRouter();
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [account, setAccount] = useState("");
@@ -216,6 +222,8 @@ export default function AccountSecurityPage({ role }: { role: Exclude<UserRole, 
           {loading ? "更新中..." : "更新密碼"}
         </button>
       </form>
+
+      {children}
 
       <div className="w-full max-w-2xl mt-auto">
         <Copyright mode={settings.copyrightNotice ? "啟用" : "關閉"} />

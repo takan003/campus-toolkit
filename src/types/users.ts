@@ -64,7 +64,7 @@ export interface StaffRecord extends BaseUserRecord {
 export type RoleRecord = StudentRecord | ParentRecord | StaffRecord;
 
 export const ROLE_SPECIFIC_FIELDS: Record<
-  Exclude<UserRole, "admin">,
+  UserRole,
   { key: string; label: string }[]
 > = {
   student: [
@@ -83,4 +83,6 @@ export const ROLE_SPECIFIC_FIELDS: Record<
     { key: "title", label: "職稱" },
     { key: "attribute", label: "屬性" },
   ],
+  // 管理員無角色專屬欄位（僅顯示姓名、電子郵件、帳號）
+  admin: [],
 };

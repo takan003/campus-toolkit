@@ -125,6 +125,9 @@ export default function AdminPage() {
       {/* 功能標題 */}
       <div className="w-full max-w-2xl mt-4 mb-2 text-center">
         <h2 className="text-2xl font-bold text-t1">管理員功能首頁</h2>
+        {(user.displayName || user.account) && (
+          <p className="text-t2 mt-1">{user.displayName || user.account}，您好</p>
+        )}
       </div>
 
       {/* 登出按鈕 */}

@@ -12,7 +12,7 @@ const SETTINGS_DOC = { collection: "settings", id: "system" };
 const MAX_SETTINGS = 200_000;
 
 // 公開 GET 只回傳展示用白名單欄位；
-// contactPerson／contactEmail／oauthClientId 等僅 admin 完整可見
+// contactPerson／contactEmail 等僅 admin 完整可見
 const PUBLIC_SETTINGS_KEYS: (keyof Settings)[] = [
   "systemEnabled",
   "systemName",
@@ -119,10 +119,12 @@ export async function PUT(request: NextRequest) {
     const settings = pickSettings(body);
     if (settings.sessionTimeout < 1) settings.sessionTimeout = 1;
 
+    // 不使用 merge：整份覆寫，讓已廢棄欄位（例如 oauthClientId）
+    // 在下次儲存設定時自動從 Firestore settings/system 清除
     await getAdminDb()
       .collection(SETTINGS_DOC.collection)
       .doc(SETTINGS_DOC.id)
-      .set(settings, { merge: true });
+      .set(settings);
     invalidateSettingsCache();
 
     await logActivity({

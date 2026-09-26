@@ -85,7 +85,6 @@ const settingGroups: SettingGroup[] = [
           { value: "false", label: "停用" },
         ],
       },
-      { id: "oauthClientId", label: "OAuth 用戶端 ID", type: "text", placeholder: "" },
       {
         id: "sessionTimeout",
         label: "閒置逾時（分鐘）",

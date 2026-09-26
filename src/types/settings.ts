@@ -9,7 +9,6 @@ export interface Settings {
   contactPerson: string;
   contactEmail: string;
   oauthEnabled: boolean;
-  oauthClientId: string;
   sessionTimeout: number;
   cssThemeId: string; // Admin 強制主題
   copyrightNotice: boolean;
@@ -27,7 +26,6 @@ export const defaultSettings: Settings = {
   contactPerson: "",
   contactEmail: "",
   oauthEnabled: false,
-  oauthClientId: "",
   sessionTimeout: 10,
   cssThemeId: "",
   copyrightNotice: true,

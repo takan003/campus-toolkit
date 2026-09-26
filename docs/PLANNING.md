@@ -205,7 +205,6 @@ interface Settings {
   
   // 系統管理
   oauthEnabled: boolean;
-  oauthClientId: string;
   totpEnabled: boolean;
   workspaceLoginEnabled: boolean;
   twoFactorEnabled: boolean;

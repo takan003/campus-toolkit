@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Settings, defaultSettings } from "@/types/settings";
 import { normalizeEmail } from "@/lib/validation";
+import { isUserRole, ROLE_LABELS, UserRole } from "@/types/users";
+import { readSelectedRole, saveSelectedRole } from "@/lib/selected-role";
 import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
 import HomepageCornerWrench from "@/components/HomepageCornerWrench";
@@ -16,8 +18,12 @@ type ApiResponse = {
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
+/** 與登入頁相同的四種身分（順序一致） */
+const ROLE_OPTIONS: UserRole[] = ["student", "parent", "staff", "admin"];
+
 export default function ForgotPasswordPage() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [role, setRole] = useState<UserRole>("student");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -37,6 +43,16 @@ export default function ForgotPasswordPage() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // 身分：優先採用登入頁帶入的 ?role=，否則沿用上次選擇（預設與登入頁相同為學生）
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("role");
+    const next = isUserRole(fromUrl) ? fromUrl : readSelectedRole();
+    if (next) {
+      setRole(next);
+      saveSelectedRole(next);
+    }
   }, []);
 
   useEffect(() => {
@@ -101,6 +117,11 @@ export default function ForgotPasswordPage() {
     }
   }
 
+  function selectRole(next: UserRole) {
+    setRole(next);
+    saveSelectedRole(next);
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-page px-4 pt-[20px]">
       <HomepageCornerWrench />
@@ -120,9 +141,37 @@ export default function ForgotPasswordPage() {
         {!sent ? (
           <>
             <p className="text-center text-t2 mb-1">忘記密碼</p>
-            <p className="text-center text-sm text-t3 mb-6">
+            <p className="text-center text-sm text-t3 mb-4">
               請輸入您的電子郵件地址，我們將寄送密碼重設信件
             </p>
+
+            {/* 身分選擇（與登入頁一致，可在此切換） */}
+            <label className="block text-sm font-medium text-t2 mb-2">
+              目前身分
+            </label>
+            <div className="flex justify-center gap-4 mb-2 flex-wrap">
+              {ROLE_OPTIONS.map((option) => (
+                <label
+                  key={option}
+                  className="flex items-center gap-1 cursor-pointer"
+                >
+                  <input
+                    type="radio"
+                    name="role"
+                    value={option}
+                    checked={role === option}
+                    onChange={() => selectRole(option)}
+                    className="accent-black"
+                  />
+                  <span>{ROLE_LABELS[option]}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-t3 mb-4">
+              請選擇與登入頁相同的身分
+            </p>
+
+            <hr className="border-themed mb-4" />
 
             <label className="block text-sm font-medium text-t2 mb-2">
               電子郵件地址
@@ -138,7 +187,7 @@ export default function ForgotPasswordPage() {
             />
 
             {error && (
-              <p className="text-red-500 text-sm text-center mb-4">{error}</p>
+              <p className="text-danger text-sm text-center mb-4">{error}</p>
             )}
 
             <button
@@ -170,7 +219,7 @@ export default function ForgotPasswordPage() {
           <>
             <div className="flex justify-center mb-4">
               <svg
-                className="w-12 h-12 text-green-500"
+                className="w-12 h-12 text-success"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -188,8 +237,11 @@ export default function ForgotPasswordPage() {
             <p className="text-center text-sm text-t2 mb-1">
               若該電子郵件已註冊，我們已將密碼重設信件寄至
             </p>
-            <p className="text-center text-sm font-medium text-t1 break-all mb-4">
+            <p className="text-center text-sm font-medium text-t1 break-all mb-1">
               {email}
+            </p>
+            <p className="text-center text-xs text-t3 mb-4">
+              目前身分：{ROLE_LABELS[role]}
             </p>
             <p className="text-center text-xs text-t3 mb-6">
               請於 10 分鐘內依信件指示重設密碼。沒收到嗎？請檢查垃圾郵件匣，
@@ -197,7 +249,7 @@ export default function ForgotPasswordPage() {
             </p>
 
             {error && (
-              <p className="text-red-500 text-sm text-center mb-4">{error}</p>
+              <p className="text-danger text-sm text-center mb-4">{error}</p>
             )}
 
             <button

@@ -7,6 +7,7 @@ import { auth, googleProvider, ensureSignedOut } from "@/lib/firebase";
 import { Settings, defaultSettings } from "@/types/settings";
 import { UserRole, ROLE_HOME, ROLE_LABELS, isUserRole } from "@/types/users";
 import { fetchSession, setCachedSession, UserSession } from "@/lib/session";
+import { readSelectedRole, saveSelectedRole } from "@/lib/selected-role";
 import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
 import HomepageCornerWrench from "@/components/HomepageCornerWrench";
@@ -80,6 +81,12 @@ export default function Home() {
     };
   }, [router]);
 
+  // 還原上次選擇的身分（忘記密碼頁的身分選擇會寫入，兩頁往返不被重置）
+  useEffect(() => {
+    const saved = readSelectedRole();
+    if (saved) setRole(saved);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     async function loadSettings() {
@@ -99,6 +106,11 @@ export default function Home() {
       cancelled = true;
     };
   }, []);
+
+  function selectRole(next: UserRole) {
+    setRole(next);
+    saveSelectedRole(next);
+  }
 
   async function handleLogin() {
     if (!account || !password) {
@@ -322,7 +334,7 @@ export default function Home() {
               name="role"
               value="student"
               checked={role === "student"}
-              onChange={() => setRole("student")}
+              onChange={() => selectRole("student")}
               className="accent-black"
             />
             <span>{ROLE_LABELS.student}</span>
@@ -333,7 +345,7 @@ export default function Home() {
               name="role"
               value="parent"
               checked={role === "parent"}
-              onChange={() => setRole("parent")}
+              onChange={() => selectRole("parent")}
               className="accent-black"
             />
             <span>{ROLE_LABELS.parent}</span>
@@ -344,7 +356,7 @@ export default function Home() {
               name="role"
               value="staff"
               checked={role === "staff"}
-              onChange={() => setRole("staff")}
+              onChange={() => selectRole("staff")}
               className="accent-black"
             />
             <span>{ROLE_LABELS.staff}</span>
@@ -355,7 +367,7 @@ export default function Home() {
               name="role"
               value="admin"
               checked={role === "admin"}
-              onChange={() => setRole("admin")}
+              onChange={() => selectRole("admin")}
               className="accent-black"
             />
             <span>{ROLE_LABELS.admin}</span>
@@ -413,7 +425,7 @@ export default function Home() {
         </button>
 
         <a
-          href="/forgot-password"
+          href={`/forgot-password?role=${role}`}
           className="block text-center text-sm text-t3 mt-3 cursor-pointer hover:underline"
         >
           忘記密碼（同時重設驗證碼）

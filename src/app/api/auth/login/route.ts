@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb } from "@/lib/firebase-admin";
 import { verifyPassword, hashPassword } from "@/lib/auth";
-import { createSession } from "@/lib/server-session";
+import { createSession, setPending2FACookie } from "@/lib/server-session";
 import { logActivity, getClientIp } from "@/lib/audit";
 import {
   enforceRateLimit,
@@ -10,6 +10,12 @@ import {
 } from "@/lib/rate-limit";
 import { assertSameOrigin } from "@/lib/csrf";
 import { isSystemEnabled } from "@/lib/settings-server";
+import {
+  maskEmail,
+  readTwoFactorProfile,
+  sendEmailOtp,
+  sendLoginNotification,
+} from "@/lib/two-factor";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 import { serverErrorMessage } from "@/lib/api-error";
 
@@ -217,39 +223,108 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 兩階段驗證：帳密通過後先不建立 session，交由 /api/auth/2fa 完成第二階段
+    const { method: twoFactorMethod } = readTwoFactorProfile(userData);
+    const displayName = userData.name || userData.displayName || "";
+
+    if (twoFactorMethod === "email_otp" || twoFactorMethod === "totp") {
+      // Email OTP 寄信不可用（SMTP 未設定）時不阻擋登入，避免把自己鎖在門外
+      const otpState =
+        twoFactorMethod === "email_otp"
+          ? await sendEmailOtp({
+              ref: userDoc.ref,
+              data: userData,
+              email: userData.email,
+              displayName,
+              account: userData.account,
+              role,
+            })
+          : "sent";
+
+      if (otpState !== "smtp") {
+        await setPending2FACookie({
+          uid: userDoc.id,
+          email: userData.email,
+          account: userData.account,
+          displayName,
+          role,
+          method: twoFactorMethod,
+          via: "password",
+        });
+        await logActivity({
+          userId: userDoc.id,
+          role,
+          action: twoFactorMethod === "email_otp" ? "email_otp_sent" : "login",
+          ip,
+          details:
+            twoFactorMethod === "email_otp"
+              ? otpState === "cooldown"
+                ? "登入請求 Email OTP（120 秒節流內，沿用既有驗證碼）"
+                : "登入請求 Email OTP，已寄出驗證碼"
+              : "帳密通過，等待 TOTP 驗證",
+        });
+        return NextResponse.json({
+          success: true,
+          requires2FA: twoFactorMethod,
+          maskedEmail: maskEmail(userData.email),
+        });
+      }
+
+      await logActivity({
+        userId: userDoc.id,
+        role,
+        action: "login",
+        ip,
+        details: "Email OTP 無法寄出，略過兩階段驗證直接登入",
+      });
+    }
+
     const now = Date.now();
-    const loginRecords =
-      role === "admin"
-        ? undefined
-        : [...((userData.loginRecords as number[]) || []), now].slice(-50);
+    const loginRecords = [
+      ...((Array.isArray(userData.loginRecords) ? userData.loginRecords : []) as number[]),
+      now,
+    ].slice(-50);
 
     await userDoc.ref.update({
       failedAttempts: 0,
       lockedUntil: 0,
       lockIp: "",
       lastLogin: now,
-      lastLoginMethod: "password",
+      lastLoginMethod:
+        twoFactorMethod === "email_notify" ? "password+email_notify" : "password",
       loginCount: (userData.loginCount || 0) + 1,
-      ...(loginRecords ? { loginRecords } : {}),
+      loginRecords,
     });
 
     const user = {
       uid: userDoc.id,
       email: userData.email,
       account: userData.account,
-      displayName: userData.name || userData.displayName || "",
+      displayName,
       role,
       tokenVersion: typeof userData.tokenVersion === "number" ? userData.tokenVersion : 1,
     };
 
     await createSession(user);
 
+    if (twoFactorMethod === "email_notify") {
+      await sendLoginNotification({
+        email: userData.email,
+        displayName,
+        account: userData.account,
+        role,
+      });
+    }
+
     await logActivity({
       userId: userDoc.id,
       role,
       action: "login",
       ip,
-      details: "帳密登入成功",
+      details:
+        twoFactorMethod === "email_notify"
+          ? "帳密登入成功（已寄送登入通知）"
+          : "帳密登入成功",
     });
 
     return NextResponse.json({ success: true, user });

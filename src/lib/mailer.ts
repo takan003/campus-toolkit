@@ -155,3 +155,123 @@ ${roleBox}    <p style="margin:0 0 24px;font-size:15px;line-height:1.7;">
     html,
   });
 }
+
+export interface LoginOtpMailOptions {
+  to: string;
+  displayName?: string;
+  /** 6 位數登入驗證碼 */
+  code: string;
+  siteName?: string;
+  roleLabel?: string;
+  expiresInMinutes: number;
+}
+
+/** 兩階段驗證：電子郵件驗證碼信 */
+export async function sendLoginOtpEmail(options: LoginOtpMailOptions): Promise<void> {
+  const transport = await getTransport();
+  const siteName = options.siteName || "數位校園工具箱";
+  const from =
+    process.env.SMTP_FROM?.trim() ||
+    `${siteName} <${process.env.SMTP_USER}>`;
+  const greeting = options.displayName ? `${options.displayName} 您好` : "您好";
+  const roleText = options.roleLabel ? `身分：${options.roleLabel}` : "";
+
+  const text = [
+    `${greeting}：`,
+    "",
+    `您的 ${siteName} 登入驗證碼為：${options.code}`,
+    ...(roleText ? [roleText] : []),
+    `驗證碼 ${options.expiresInMinutes} 分鐘內有效。`,
+    "",
+    "若非本人登入，請立即變更密碼並忽略這封信件。",
+  ].join("\n");
+
+  const html = `
+<!DOCTYPE html>
+<html lang="zh-TW">
+<body style="margin:0;padding:24px;background:#f5f6f8;font-family:-apple-system,'Segoe UI','Noto Sans TC',Arial,sans-serif;color:#1f2328;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:32px;">
+    <h1 style="margin:0 0 4px;font-size:20px;">${escapeHtml(siteName)}</h1>
+    <p style="margin:0 0 20px;font-size:14px;color:#6b7280;">登入驗證碼</p>
+    <p style="margin:0 0 16px;font-size:15px;">${escapeHtml(greeting)}：</p>
+    <p style="margin:0 0 24px;font-size:15px;line-height:1.7;">
+      您的登入驗證碼是：${roleText ? `<br />${escapeHtml(roleText)}` : ""}
+    </p>
+    <p style="margin:0 0 24px;font-size:32px;letter-spacing:8px;font-weight:700;text-align:center;background:#f3f4f6;border-radius:8px;padding:16px 0;">
+      ${escapeHtml(options.code)}
+    </p>
+    <p style="margin:0 0 8px;font-size:13px;color:#6b7280;line-height:1.7;">
+      驗證碼 ${options.expiresInMinutes} 分鐘內有效，逾時請重新登入取得。<br />
+      若非本人登入，請立即變更密碼並忽略這封信件。
+    </p>
+  </div>
+</body>
+</html>`.trim();
+
+  await transport.sendMail({
+    from,
+    to: options.to,
+    subject: `【${siteName}】登入驗證碼 ${options.code}（${options.expiresInMinutes} 分鐘內有效）`,
+    text,
+    html,
+  });
+}
+
+export interface LoginNotificationMailOptions {
+  to: string;
+  displayName?: string;
+  siteName?: string;
+  roleLabel?: string;
+  /** 登入時間（本機時間） */
+  time: Date;
+}
+
+/** 兩階段驗證：電子郵件發送登入通知信（不阻擋登入） */
+export async function sendLoginNotificationEmail(
+  options: LoginNotificationMailOptions
+): Promise<void> {
+  const transport = await getTransport();
+  const siteName = options.siteName || "數位校園工具箱";
+  const from =
+    process.env.SMTP_FROM?.trim() ||
+    `${siteName} <${process.env.SMTP_USER}>`;
+  const greeting = options.displayName ? `${options.displayName} 您好` : "您好";
+  const roleText = options.roleLabel ? `（身分：${options.roleLabel}）` : "";
+  const timeText = options.time.toLocaleString("zh-TW", { hour12: false });
+
+  const text = [
+    `${greeting}：`,
+    "",
+    `您的 ${siteName} 帳號${roleText}於 ${timeText} 登入。`,
+    "",
+    "若非本人操作，請立即變更密碼。",
+  ].join("\n");
+
+  const html = `
+<!DOCTYPE html>
+<html lang="zh-TW">
+<body style="margin:0;padding:24px;background:#f5f6f8;font-family:-apple-system,'Segoe UI','Noto Sans TC',Arial,sans-serif;color:#1f2328;">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;padding:32px;">
+    <h1 style="margin:0 0 4px;font-size:20px;">${escapeHtml(siteName)}</h1>
+    <p style="margin:0 0 20px;font-size:14px;color:#6b7280;">登入通知</p>
+    <p style="margin:0 0 16px;font-size:15px;">${escapeHtml(greeting)}：</p>
+    <p style="margin:0 0 24px;font-size:15px;line-height:1.7;">
+      您的帳號${escapeHtml(roleText)}於
+      <strong style="color:#111827;">${escapeHtml(timeText)}</strong>
+      登入 ${escapeHtml(siteName)}。
+    </p>
+    <p style="margin:0 0 8px;font-size:13px;color:#6b7280;line-height:1.7;">
+      若非本人操作，請立即變更密碼。
+    </p>
+  </div>
+</body>
+</html>`.trim();
+
+  await transport.sendMail({
+    from,
+    to: options.to,
+    subject: `【${siteName}】登入通知（${timeText}）`,
+    text,
+    html,
+  });
+}

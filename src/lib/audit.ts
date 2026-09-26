@@ -13,7 +13,12 @@ export type ActivityAction =
   | "settings_change"
   | "admin_created"
   | "admin_updated"
-  | "admin_deleted";
+  | "admin_deleted"
+  | "account_updated"
+  | "two_factor_changed"
+  | "two_factor_verified"
+  | "two_factor_failed"
+  | "email_otp_sent";
 
 export interface ActivityEntry {
   userId?: string;

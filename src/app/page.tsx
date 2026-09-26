@@ -17,6 +17,9 @@ import HomepageCornerExam from "@/components/HomepageCornerExam";
 type ApiResponse = {
   success?: boolean;
   message?: string;
+  /** 帳密驗證通過但需完成第二階段驗證（email_otp / totp） */
+  requires2FA?: string;
+  maskedEmail?: string;
   user?: {
     uid?: string;
     email?: string;
@@ -25,6 +28,13 @@ type ApiResponse = {
     role?: string;
   };
 };
+
+/** 第二階段驗證方式 → 對應驗證頁路徑（非第二階段回 null） */
+function twoFactorPage(requires: string | undefined): string | null {
+  if (requires === "email_otp") return "/verify-code";
+  if (requires === "totp") return "/verify-totp";
+  return null;
+}
 
 async function parseApiResponse(response: Response): Promise<ApiResponse | null> {
   const raw = await response.text();
@@ -128,6 +138,13 @@ export default function Home() {
         body: JSON.stringify({ account, password, role }),
       });
       const data = await parseApiResponse(res);
+
+      // 需要第二階段驗證：驗證頁接手，此處不建立前端 session 快取
+      const verifyPage = twoFactorPage(data?.requires2FA);
+      if (verifyPage) {
+        router.push(verifyPage);
+        return;
+      }
 
       if (!res.ok || !data?.success || !data.user) {
         setError(getErrorMessage(data, `登入失敗（HTTP ${res.status}）`));
@@ -237,6 +254,13 @@ export default function Home() {
         body: JSON.stringify({ idToken, role }),
       });
       const data = await parseApiResponse(res);
+
+      // 需要第二階段驗證：驗證頁接手，此處不建立前端 session 快取
+      const verifyPage = twoFactorPage(data?.requires2FA);
+      if (verifyPage) {
+        router.push(verifyPage);
+        return;
+      }
 
       if (!res.ok || !data?.success || !data.user) {
         await ensureSignedOut();

@@ -151,4 +151,15 @@ export const RATE = {
   SEED_ROLES: { limit: 5, windowMs: 60 * 60_000 },
   LEADERBOARD_GET: { limit: 60, windowMs: 60_000 },
   LEADERBOARD_POST: { limit: 20, windowMs: 60_000 },
+  /** 兩階段驗證：重發 Email OTP（本身另有同用戶 120 秒節流） */
+  TWO_FA_RESEND: { limit: 5, windowMs: 10 * 60_000 },
+  /** 兩階段驗證：驗證碼提交（同用戶失敗次數另計於 lib/two-factor.ts） */
+  TWO_FA_VERIFY: { limit: 20, windowMs: 15 * 60_000 },
+  TWO_FA_STATUS: { limit: 60, windowMs: 60_000 },
+  /** 帳號與安全：讀取自身資料 */
+  ACCOUNT_GET: { limit: 60, windowMs: 60_000 },
+  /** 帳號與安全：儲存信箱／帳號 */
+  ACCOUNT_UPDATE: { limit: 10, windowMs: 60_000 },
+  /** 帳號與安全：設定兩階段驗證方式／重新產生 TOTP 密鑰 */
+  TWO_FACTOR_SET: { limit: 10, windowMs: 60_000 },
 } as const;

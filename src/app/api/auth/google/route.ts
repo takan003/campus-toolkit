@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminDb, getAdminAuth } from "@/lib/firebase-admin";
-import { createSession } from "@/lib/server-session";
+import { createSession, setPending2FACookie } from "@/lib/server-session";
 import { logActivity, getClientIp } from "@/lib/audit";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { assertSameOrigin } from "@/lib/csrf";
 import { isSystemEnabled } from "@/lib/settings-server";
+import {
+  maskEmail,
+  readTwoFactorProfile,
+  sendEmailOtp,
+  sendLoginNotification,
+} from "@/lib/two-factor";
 import { ROLE_COLLECTIONS, isUserRole } from "@/types/users";
 import { serverErrorMessage } from "@/lib/api-error";
 
@@ -102,39 +108,105 @@ export async function POST(request: NextRequest) {
       }, { status: 401 });
     }
 
+    // 兩階段驗證：Google 登入同樣要完成第二階段才建立 session
+    const { method: twoFactorMethod } = readTwoFactorProfile(userData);
+    const displayName = userData.name || userData.displayName || "";
+
+    if (twoFactorMethod === "email_otp" || twoFactorMethod === "totp") {
+      const otpState =
+        twoFactorMethod === "email_otp"
+          ? await sendEmailOtp({
+              ref: userDoc.ref,
+              data: userData,
+              email: userData.email,
+              displayName,
+              account: userData.account,
+              role,
+            })
+          : "sent";
+
+      if (otpState !== "smtp") {
+        await setPending2FACookie({
+          uid: userDoc.id,
+          email: userData.email,
+          account: userData.account,
+          displayName,
+          role,
+          method: twoFactorMethod,
+          via: "google",
+        });
+        await logActivity({
+          userId: userDoc.id,
+          role,
+          action: twoFactorMethod === "email_otp" ? "email_otp_sent" : "login",
+          ip,
+          details:
+            twoFactorMethod === "email_otp"
+              ? "Google 登入請求 Email OTP，已寄出驗證碼"
+              : "Google 帳號驗證通過，等待 TOTP 驗證",
+        });
+        return NextResponse.json({
+          success: true,
+          requires2FA: twoFactorMethod,
+          maskedEmail: maskEmail(userData.email),
+        });
+      }
+
+      await logActivity({
+        userId: userDoc.id,
+        role,
+        action: "login",
+        ip,
+        details: "Email OTP 無法寄出，略過兩階段驗證直接登入",
+      });
+    }
+
     const now = Date.now();
-    const loginRecords =
-      role === "admin"
-        ? undefined
-        : [...((userData.loginRecords as number[]) || []), now].slice(-50);
+    const loginRecords = [
+      ...((Array.isArray(userData.loginRecords) ? userData.loginRecords : []) as number[]),
+      now,
+    ].slice(-50);
 
     await userDoc.ref.update({
       failedAttempts: 0,
       lockedUntil: 0,
       lockIp: "",
       lastLogin: now,
-      lastLoginMethod: "google",
+      lastLoginMethod:
+        twoFactorMethod === "email_notify" ? "google+email_notify" : "google",
       loginCount: (userData.loginCount || 0) + 1,
-      ...(loginRecords ? { loginRecords } : {}),
+      loginRecords,
     });
 
     const user = {
       uid: userDoc.id,
       email: userData.email,
       account: userData.account,
-      displayName: userData.name || userData.displayName || "",
+      displayName,
       role,
       tokenVersion: typeof userData.tokenVersion === "number" ? userData.tokenVersion : 1,
     };
 
     await createSession(user);
 
+    if (twoFactorMethod === "email_notify") {
+      await sendLoginNotification({
+        email: userData.email,
+        displayName,
+        account: userData.account,
+        role,
+      });
+    }
+
     await logActivity({
       userId: userDoc.id,
       role,
       action: "login",
       ip,
-      details: "Google 登入成功",
+      details:
+        twoFactorMethod === "email_notify"
+          ? "Google 登入成功（已寄送登入通知）"
+          : "Google 登入成功",
     });
 
     return NextResponse.json({ success: true, user });

@@ -25,6 +25,39 @@ export function isUserRole(value: unknown): value is UserRole {
   return value === "student" || value === "parent" || value === "staff" || value === "admin";
 }
 
+/**
+ * 兩階段驗證方式（存於使用者文件 `twoFactor` 欄位）。
+ * 選項文字與舊 GAS 站 account.html 一致：關閉 / 登入通知 / 電子郵件驗證碼 / 驗證碼APP。
+ */
+export const TWO_FACTOR_METHODS = [
+  { value: "off", label: "關閉 - 高風險" },
+  { value: "email_notify", label: "電子郵件發送登入通知 - 中風險" },
+  { value: "email_otp", label: "電子郵件驗證碼 - 低風險" },
+  { value: "totp", label: "驗證碼APP - 低風險" },
+] as const;
+
+export type TwoFactorMethod = (typeof TWO_FACTOR_METHODS)[number]["value"];
+
+export const DEFAULT_TWO_FACTOR: TwoFactorMethod = "off";
+
+export function isTwoFactorMethod(value: unknown): value is TwoFactorMethod {
+  return (
+    typeof value === "string" &&
+    TWO_FACTOR_METHODS.some((method) => method.value === value)
+  );
+}
+
+/** 顯示用標籤；未知值一律視為「關閉」（fail-safe，不會誤觸驗證） */
+export function twoFactorLabel(value: unknown): string {
+  const method = isTwoFactorMethod(value) ? value : DEFAULT_TWO_FACTOR;
+  return TWO_FACTOR_METHODS.find((item) => item.value === method)?.label || TWO_FACTOR_METHODS[0].label;
+}
+
+/** 需要第二階段驗證才建立 session 的方式（登入通知不阻擋登入） */
+export function requiresSecondFactor(value: unknown): value is "email_otp" | "totp" {
+  return value === "email_otp" || value === "totp";
+}
+
 export interface BaseUserRecord {
   email: string;
   account: string;
@@ -62,6 +95,36 @@ export interface StaffRecord extends BaseUserRecord {
 }
 
 export type RoleRecord = StudentRecord | ParentRecord | StaffRecord;
+
+/** 管理員文件（admins collection）欄位總覽，帳號與安全管理頁對應讀取 */
+export interface AdminRecord {
+  email: string;
+  account: string;
+  passwordHash: string;
+  displayName: string;
+  /** 兩階段驗證方式，缺省視為 off */
+  twoFactor?: TwoFactorMethod;
+  /** TOTP Base32 密鑰（twoFactor=totp 時使用） */
+  totpSecret?: string;
+  /** Email OTP：只存 sha256(code + uid)，有效期限與寄送節流 */
+  otpHash?: string;
+  otpExpiresAt?: number;
+  otpSentAt?: number;
+  /** TOTP 防重放：90 秒內同一組驗證碼不可重複使用 */
+  totpLastCode?: string;
+  totpLastUsedAt?: number;
+  loginRecords: number[];
+  lastLogin: number;
+  lastLoginMethod: string;
+  loginCount: number;
+  cssThemeId: string;
+  installedThemes: string;
+  lockedUntil: number;
+  lockIp?: string;
+  failedAttempts: number;
+  tokenVersion: number;
+  createdAt: number;
+}
 
 export const ROLE_SPECIFIC_FIELDS: Record<
   UserRole,

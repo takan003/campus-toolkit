@@ -5,14 +5,20 @@ import {
   SESSION_COOKIE,
   SESSION_MAX_AGE_SECONDS,
   SESSION_ABSOLUTE_MAX_AGE_SECONDS,
+  PENDING_2FA_COOKIE,
+  PENDING_2FA_MAX_AGE_SECONDS,
+  Pending2FAInput,
+  Pending2FAPayload,
   SessionPayload,
   signSessionToken,
   verifySessionToken,
+  signPending2FAToken,
+  verifyPending2FAToken,
 } from "@/lib/session-token";
 import { revokeJti } from "@/lib/revocation";
 
-export { SESSION_COOKIE };
-export type { SessionPayload };
+export { SESSION_COOKIE, PENDING_2FA_COOKIE };
+export type { SessionPayload, Pending2FAInput, Pending2FAPayload };
 
 function sessionCookieOptions(absoluteExpiresAt?: number) {
   let maxAge = SESSION_MAX_AGE_SECONDS;
@@ -87,6 +93,37 @@ export async function deleteSession(): Promise<void> {
   }
   cookieStore.delete(SESSION_COOKIE);
   if (SESSION_COOKIE !== "session") cookieStore.delete("session");
+}
+
+function pending2faCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    maxAge: PENDING_2FA_MAX_AGE_SECONDS,
+  };
+}
+
+/** 密碼驗證通過、第二階段未完成：寫入短期中途憑證 cookie */
+export async function setPending2FACookie(payload: Pending2FAInput): Promise<void> {
+  const token = await signPending2FAToken(payload);
+  const cookieStore = await cookies();
+  cookieStore.set(PENDING_2FA_COOKIE, token, pending2faCookieOptions());
+}
+
+/** 讀取並驗證中途憑證；無效／過期回 null（前端應導回登入頁） */
+export async function getPending2FAPayload(): Promise<Pending2FAPayload | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(PENDING_2FA_COOKIE)?.value;
+  if (!token) return null;
+  return verifyPending2FAToken(token);
+}
+
+/** 驗證成功或要回到登入頁時清除，避免殘留可用憑證 */
+export async function clearPending2FACookie(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete(PENDING_2FA_COOKIE);
 }
 
 export function unauthorized(message = "未登入或登入已失效"): NextResponse {

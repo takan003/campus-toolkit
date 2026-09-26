@@ -297,11 +297,18 @@ export default function Home() {
 
   if (!settings.systemEnabled) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-page px-4">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-2">系統目前暫停服務</h1>
           <p className="text-t3">請稍後再試</p>
         </div>
+
+        {/* 廣告區域 */}
+        {settings.sponsorAdEnabled && (
+          <div className="w-full max-w-md mt-6">
+            <AdSense />
+          </div>
+        )}
       </div>
     );
   }

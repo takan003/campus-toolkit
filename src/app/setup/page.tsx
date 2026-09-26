@@ -95,7 +95,7 @@ export default function SetupPage() {
 
   if (available === false) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-page px-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-page px-4">
         <div className="w-full max-w-md text-center">
           <h1 className="text-3xl font-bold mb-2">數位校園工具箱</h1>
           <p className="text-t3">初始設定已停用</p>
@@ -103,6 +103,13 @@ export default function SetupPage() {
             返回首頁
           </a>
         </div>
+
+        {/* 廣告區域 */}
+        {settings.sponsorAdEnabled && (
+          <div className="w-full max-w-md mt-8">
+            <AdSense />
+          </div>
+        )}
       </div>
     );
   }

@@ -44,13 +44,7 @@ function formatDateTime(value: number): string {
   return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
-export default function AccountSecurityPage({
-  role,
-  children,
-}: {
-  role: UserRole;
-  children?: React.ReactNode;
-}) {
+export default function AccountSecurityPage({ role }: { role: UserRole }) {
   const router = useRouter();
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
@@ -449,8 +443,6 @@ export default function AccountSecurityPage({
           {savingAccount ? "儲存中..." : "儲存帳密資料"}
         </button>
       </form>
-
-      {children}
 
       {/* 兩階段驗證卡 */}
       <form onSubmit={handleSaveTwoFactor} className="w-full max-w-2xl border border-themed rounded-lg p-6 mb-4">

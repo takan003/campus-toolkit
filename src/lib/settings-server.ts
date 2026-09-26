@@ -8,11 +8,13 @@ const CACHE_TTL_MS = 30_000;
 
 let timeoutCache: { minutes: number; at: number } | null = null;
 let enabledCache: { enabled: boolean; at: number } | null = null;
+let siteNameCache: { name: string; at: number } | null = null;
 
 /** 設定儲存後呼叫，讓閒置逾時與系統啟用狀態快取立即失效 */
 export function invalidateSettingsCache(): void {
   timeoutCache = null;
   enabledCache = null;
+  siteNameCache = null;
 }
 
 /**
@@ -67,5 +69,33 @@ export async function getSessionTimeoutMinutes(): Promise<number> {
     console.error("Session timeout settings read error:", error);
     if (timeoutCache) return timeoutCache.minutes;
     return defaultSettings.sessionTimeout;
+  }
+}
+
+/**
+ * 取得信件／通知抬頭用的站名（優先學校全名，其次系統名稱）。
+ * 與其他設定共用 30 秒快取，讀失敗回退預設名稱。
+ */
+export async function getSiteName(): Promise<string> {
+  const now = Date.now();
+  if (siteNameCache && now - siteNameCache.at < CACHE_TTL_MS) return siteNameCache.name;
+
+  try {
+    const snap = await getAdminDb()
+      .collection(SETTINGS_COLLECTION)
+      .doc(SETTINGS_DOC_ID)
+      .get();
+    const raw = snap.exists
+      ? (snap.data() as Record<string, unknown> | undefined)
+      : undefined;
+    const schoolFullName = typeof raw?.schoolFullName === "string" ? raw.schoolFullName.trim() : "";
+    const systemName = typeof raw?.systemName === "string" ? raw.systemName.trim() : "";
+    const name = schoolFullName || systemName || "數位校園工具箱";
+    siteNameCache = { name, at: now };
+    return name;
+  } catch (error) {
+    console.error("Site name settings read error:", error);
+    if (siteNameCache) return siteNameCache.name;
+    return "數位校園工具箱";
   }
 }

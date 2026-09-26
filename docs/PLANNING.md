@@ -270,6 +270,8 @@ interface ActivityLog {
 | `/api/auth/login` | POST | 帳密登入 |
 | `/api/auth/logout` | POST | 登出（撤銷 token） |
 | `/api/auth/refresh` | POST | 刷新 token |
+| `/api/auth/forgot-password` | POST | 忘記密碼：寄送重設信件（連結 10 分鐘有效） |
+| `/api/auth/reset-password` | GET | 驗證重設連結（不消耗 token） |
 | `/api/auth/reset-password` | POST | 重設密碼（一次性連結） |
 
 ### 4.2 管理 API

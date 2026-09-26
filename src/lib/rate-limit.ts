@@ -132,6 +132,14 @@ export const RATE = {
   LOGIN_ACCOUNT: { limit: 30, windowMs: 15 * 60_000 },
   GOOGLE: { limit: 10, windowMs: 60_000 },
   CHANGE_PASSWORD: { limit: 10, windowMs: 60_000 },
+  /** 忘記密碼寄信：每 IP 每分鐘 5 次（每次請求都可能真的寄信） */
+  FORGOT_PASSWORD: { limit: 5, windowMs: 60_000 },
+  /** 同一電子郵件的節流（規格書 §九 pwd_reset_req 120s 的加強版） */
+  FORGOT_PASSWORD_EMAIL: { limit: 3, windowMs: 10 * 60_000 },
+  /** 重設密碼：驗證＋寫入 */
+  RESET_PASSWORD: { limit: 10, windowMs: 60_000 },
+  /** 重設連結驗證失敗次數（防 token 暴力猜測／亂試） */
+  RESET_PASSWORD_FAIL: { limit: 10, windowMs: 15 * 60_000 },
   KEEPALIVE: { limit: 60, windowMs: 60_000 },
   LOGOUT: { limit: 30, windowMs: 60_000 },
   SETTINGS_GET: { limit: 60, windowMs: 60_000 },

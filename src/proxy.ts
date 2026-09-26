@@ -84,6 +84,9 @@ export async function proxy(request: NextRequest) {
     },
   });
   response.headers.set("Content-Security-Policy", csp);
+  // 重設密碼連結的 token 以 query string 傳遞；no-referrer 防止離開頁面時
+  // token 經 Referer 洩漏給第三方（規格書 §驗證清單「token 洩漏於 Referer」）
+  response.headers.set("Referrer-Policy", "no-referrer");
   return response;
 }
 

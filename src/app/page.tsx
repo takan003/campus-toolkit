@@ -412,9 +412,12 @@ export default function Home() {
           {loading ? "登入中..." : "登入"}
         </button>
 
-        <p className="text-center text-sm text-t3 mt-3 cursor-pointer hover:underline">
+        <a
+          href="/forgot-password"
+          className="block text-center text-sm text-t3 mt-3 cursor-pointer hover:underline"
+        >
           忘記密碼（同時重設驗證碼）
-        </p>
+        </a>
 
         {/* 分隔線 */}
         <div className="flex items-center gap-3 my-6">

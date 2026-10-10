@@ -229,6 +229,10 @@ export interface CalendarSurfaceItem {
   startAt: number;
   endAt?: number;
   allDayDate?: string;
+  /** 全天行程（公開行事曆週/日視圖縱軸定位用，選填） */
+  allDay?: boolean;
+  /** 地點（選填） */
+  location?: string;
   important: boolean;
   categoryId: string;
   categoryName: string;

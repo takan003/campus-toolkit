@@ -149,12 +149,14 @@ const entryHref = calendarHref;
               </button>
             )
           )}
-          {/* 完整行事曆入口：登入頁→公開行事曆 /calendar；各身分→各自專頁 */}
+          {/* 完整行事曆入口（新視窗）：登入頁→公開行事曆 /calendar；各身分→各自專頁 */}
           {calendarHref && (
             <Link
               href={calendarHref}
-              title="進入行事曆"
-              aria-label="進入行事曆"
+              target="_blank"
+              rel="noopener noreferrer"
+              title="進入行事曆（新視窗）"
+              aria-label="進入行事曆（新視窗）"
               className="p-1 text-t2 hover:text-primary transition"
             >
               <ModuleIcon value="calendar" className="w-5 h-5" />

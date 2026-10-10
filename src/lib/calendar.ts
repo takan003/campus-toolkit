@@ -496,6 +496,49 @@ export async function listSurfaceCalendarEvents(
   });
 }
 
+/**
+ * 公開行事曆頁（未登入可瀏覽）：僅以 startAt 單欄位查詢（免複合索引），
+ * 狀態與公開性記憶體過濾（量級以 SURFACE_FETCH_LIMIT 有界，鐵律 3）。
+ * 15 秒 cachedRead，寫入後由 invalidateCalendarCache() 清前綴失效。
+ */
+export async function listPublicCalendarEvents(limit: number = 20): Promise<CalendarSurfaceItem[]> {
+  const take = Math.min(Math.max(Math.round(limit) || 1, 1), 20);
+  const cacheKey = `${LIST_CACHE_PREFIX}public:upcoming:${take}`;
+  return cachedRead(cacheKey, SURFACE_TTL_MS, async () => {
+    const settings = await getCalendarSettings();
+    const from = startOfTodayMs();
+    const snap = await getAdminDb()
+      .collection(CALENDAR_COLLECTION)
+      .where("startAt", ">=", from)
+      .orderBy("startAt")
+      .limit(SURFACE_FETCH_LIMIT)
+      .get();
+    const now = Date.now();
+    const records: CalendarEventRecord[] = [];
+    for (const doc of snap.docs) {
+      const record = readCalendarEventRecord(doc.id, doc.data());
+      if (!record) continue;
+      if (!isCalendarEventActive(record, now)) continue;
+      if (calendarEventEnd(record) < now) continue;
+      if (!isCalendarEventPublicReadable(record)) continue;
+      records.push(record);
+    }
+    records.sort((a, b) => a.startAt - b.startAt || a.createdAt - b.createdAt);
+    return records.slice(0, take).map((record) => ({
+      id: record.id,
+      title: record.title,
+      startAt: record.startAt,
+      endAt: record.endAt,
+      allDayDate: record.allDayDate,
+      important: record.important,
+      categoryId: record.categoryId,
+      categoryName: calendarCategoryName(settings, record.categoryId),
+      sourceModule: record.sourceModule,
+      publishUnit: record.publishUnit,
+    }));
+  });
+}
+
 /** 儲存模組設定（管理端；整份覆寫 settings/calendar） */
 export async function saveCalendarSettings(input: {
   categories?: CalendarCategory[];

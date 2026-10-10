@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listSurfaceCalendarEvents } from "@/lib/calendar";
+import { listPublicCalendarEvents } from "@/lib/calendar";
 import { clipText } from "@/types/announcements";
 
 export const dynamic = "force-dynamic";
@@ -17,11 +17,11 @@ function dateLabel(item: { startAt: number; allDayDate?: string }): string {
 }
 
 /**
- * 公開行事曆（未登入可瀏覽）：顯示閱讀權限「無」的公開行程（同登入頁顯示位置的資料源）。
+ * 公開行事曆（未登入可瀏覽）：顯示閱讀權限「無」的公開行程。
  * 入口：登入頁行事曆區塊的入口圖示／翻頁盡頭箭頭；各身分登入後走各自的行事曆專頁。
  */
 export default async function PublicCalendarPage() {
-  const items = await listSurfaceCalendarEvents({ surface: "login", role: null, classCode: null }, 20);
+  const items = await listPublicCalendarEvents(20);
 
   return (
     <main className="min-h-screen bg-page">

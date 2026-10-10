@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { listPublicCalendarEvents } from "@/lib/calendar";
-import { clipText } from "@/types/announcements";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +57,7 @@ export default async function PublicCalendarPage() {
                     href={`/calendar/${item.id}`}
                     className="inline-flex min-w-0 flex-1 items-center font-medium text-t1 hover:text-primary"
                   >
-                    <span className="truncate">{clipText(item.title, 25)}</span>
+                    <span className="truncate">{item.title}</span>
                   </a>
                 </li>
               ))}

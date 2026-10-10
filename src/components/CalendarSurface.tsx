@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import ModuleIcon from "@/components/ModuleIcon";
-import { clipText } from "@/types/announcements";
 import type {
   CalendarSurface as CalendarSurfaceKey,
   CalendarSurfaceItem,
@@ -187,7 +186,7 @@ const entryHref = calendarHref;
                 title="查看行程內容（新視窗）"
                 className="inline-flex min-w-0 flex-1 items-center font-medium text-t1 hover:text-primary"
               >
-                <span className="truncate">{clipText(item.title, 25)}</span>
+                <span className="truncate">{item.title}</span>
                 <ExternalLinkIcon />
               </a>
             </li>

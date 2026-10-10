@@ -249,7 +249,7 @@ function BannerRow({
           rel="noopener noreferrer"
           className={`${sizes.title} font-medium text-t1 truncate hover:text-primary inline-flex items-center gap-1 min-w-0`}
         >
-          <span className="truncate">{clipText(item.title, 25)}</span>
+          <span className="truncate">{item.title}</span>
           <ExternalLinkIcon />
         </a>
       </div>
@@ -294,7 +294,7 @@ function ListRow({ item, sizes }: { item: AnnouncementSurfaceItem; sizes: FontSi
         rel="noopener noreferrer"
         className="inline-flex min-w-0 flex-1 items-center font-medium text-t1 hover:text-primary"
       >
-        <span className="truncate">{clipText(item.title, 25)}</span>
+        <span className="truncate">{item.title}</span>
         <ExternalLinkIcon />
       </a>
     </li>

@@ -3,9 +3,6 @@ import { readSystemDoc } from "@/lib/settings-server";
 import { defaultSettings, type Settings } from "@/types/settings";
 import AdSense from "@/components/AdSense";
 import Copyright from "@/components/Copyright";
-import HomepageCornerWrench from "@/components/HomepageCornerWrench";
-import HomepageCornerChangE from "@/components/HomepageCornerChangE";
-import HomepageCornerExam from "@/components/HomepageCornerExam";
 import PublicCalendarView from "@/components/PublicCalendarView";
 
 export const dynamic = "force-dynamic";
@@ -31,11 +28,7 @@ export default async function PublicCalendarPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-page px-3 sm:px-4 pt-[20px]">
-      <HomepageCornerWrench />
-      <HomepageCornerChangE />
-      <HomepageCornerExam />
-
-      {/* 標題區域（比照登入首頁） */}
+      {/* 標題區域 */}
       <div className="text-center mb-6">
         <h1 className="text-4xl font-bold mb-2">數位校園工具箱</h1>
         <p className="text-xl text-t2">{settings.schoolFullName || "學校名稱"}</p>
@@ -43,8 +36,6 @@ export default async function PublicCalendarPage() {
           {settings.academicYear} 學年度 第{settings.semester}學期
         </p>
       </div>
-
-      <hr className="w-full max-w-md border-themed mb-6" />
 
       {/* 行事曆顯示區：隨瀏覽器寬度響應（無固定最大寬） */}
       <div className="w-full mb-8">

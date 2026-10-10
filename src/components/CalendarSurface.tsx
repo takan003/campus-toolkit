@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import ModuleIcon from "@/components/ModuleIcon";
+import { clipText } from "@/types/announcements";
 import type {
   CalendarSurface as CalendarSurfaceKey,
   CalendarSurfaceItem,
@@ -25,6 +26,12 @@ function dateLabel(item: CalendarSurfaceItem): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+/** 小螢幕日期標籤：僅 m/d（時間與分類不顯示） */
+function shortDateLabel(item: CalendarSurfaceItem): string {
+  const d = new Date(item.startAt);
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
 /**
@@ -84,8 +91,9 @@ export default function CalendarSurface({
 
   const item = items[Math.min(index, items.length - 1)];
   // 入口：登入後的首頁進各自行事曆；系統首頁（未登入）進回首頁（登入後才能看完整行事曆）
-  const calendarHref = surface === "login" ? null : `${ROLE_HOME[surface]}/calendar`;
-  const entryHref = calendarHref ?? "/";
+// 入口：登入頁＝公開行事曆頁 /calendar（未登入可瀏覽）；其餘身分＝各自行事曆專頁
+const calendarHref = surface === "login" ? "/calendar" : `${ROLE_HOME[surface]}/calendar`;
+const entryHref = calendarHref;
   // 2 則以上才出現翻頁箭頭（單則維持原樣，無箭頭可翻）
   const paged = items.length >= 2;
 
@@ -142,7 +150,7 @@ export default function CalendarSurface({
               </button>
             )
           )}
-          {/* 完整行事曆入口：僅在有實際頁面時顯示（登入頁無頁可開，不出死按鈕） */}
+          {/* 完整行事曆入口：登入頁→公開行事曆 /calendar；各身分→各自專頁 */}
           {calendarHref && (
             <Link
               href={calendarHref}
@@ -165,11 +173,13 @@ export default function CalendarSurface({
                   <span className="sr-only">重要</span>
                 </span>
               )}
-              {/* 行動版：日期｜類型與標題各一行（標題不被截斷）；sm 以上併回單行 */}
+              {/* 小螢幕：m/d｜標題；sm 以上：日期｜分類｜標題（標題一律 25 字內＋單行不換行） */}
               <div className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-1.5">
                 <span className="block shrink-0 text-t2 sm:inline">
-                  {dateLabel(item)}｜{item.categoryName}
-                  <span className="hidden sm:inline">｜</span>
+                  <span className="sm:hidden">{shortDateLabel(item)}｜</span>
+                  <span className="hidden sm:inline">
+                    {dateLabel(item)}｜{item.categoryName}｜
+                  </span>
                 </span>
                 <a
                   href={`/calendar/${item.id}`}
@@ -178,7 +188,7 @@ export default function CalendarSurface({
                   title="查看行程內容（新視窗）"
                   className="inline-flex min-w-0 max-w-full items-center font-medium text-t1 hover:text-primary"
                 >
-                  <span className="truncate">{item.title}</span>
+                  <span className="truncate">{clipText(item.title, 25)}</span>
                   <ExternalLinkIcon />
                 </a>
               </div>

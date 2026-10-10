@@ -59,7 +59,7 @@ function readStoredFontSize(): FontSize {
  * 系統公告顯示位置（5 處共用）：
  * 系統首頁登入表單上方、四種身分功能首頁（切換身分下拉選單下方、第一個登出按鈕上方）。
  * 顯示與否／方式（清單／「清單，置頂公告橫幅」／橫幅）／筆數由「系統公告」逐處設定。
- * 清單＝單行（日期｜分類｜標題 20 字內）；
+ * 清單＝單行（日期｜分類｜標題 25 字內；小螢幕僅 m/d｜標題）；
  * 「清單，置頂公告橫幅」＝置頂三行卡片＋其餘單行；橫幅＝全部三行卡片。
  * 字級由使用者以標題旁「小／中／大」切換，存 localStorage。
  * 標題右側「全部公告 ›」連到公告專頁 `/announcements`（不分設定筆數，附通用分頁）。
@@ -249,7 +249,7 @@ function BannerRow({
           rel="noopener noreferrer"
           className={`${sizes.title} font-medium text-t1 truncate hover:text-primary inline-flex items-center gap-1 min-w-0`}
         >
-          <span className="truncate">{clipText(item.title, 20)}</span>
+          <span className="truncate">{clipText(item.title, 25)}</span>
           <ExternalLinkIcon />
         </a>
       </div>
@@ -268,8 +268,10 @@ function BannerRow({
   );
 }
 
-/** 單行清單條目（日期｜分類｜標題 20 字內；置頂者標 pin 圖示） */
+/** 單行清單條目：小螢幕 m/d｜標題（置頂 pin 照標）；sm 以上完整日期｜分類｜標題；標題一律 25 字內＋單行 */
 function ListRow({ item, sizes }: { item: AnnouncementSurfaceItem; sizes: FontSizeClasses }) {
+  const d = new Date(item.publishAt);
+  const shortDate = `${d.getMonth() + 1}/${d.getDate()}`;
   return (
     <li
       className={`flex items-center gap-1.5 ${sizes.meta} border-b border-themed pb-1.5 last:border-0 last:pb-0`}
@@ -281,14 +283,17 @@ function ListRow({ item, sizes }: { item: AnnouncementSurfaceItem; sizes: FontSi
         </>
       )}
       <span className="truncate text-t2 min-w-0">
-        {new Date(item.publishAt).toLocaleDateString("zh-TW")}｜{item.categoryName}｜
+        <span className="sm:hidden">{shortDate}｜</span>
+        <span className="hidden sm:inline">
+          {d.toLocaleDateString("zh-TW")}｜{item.categoryName}｜
+        </span>
         <a
           href={`/announcements/${item.id}`}
           target="_blank"
           rel="noopener noreferrer"
           className="font-medium text-t1 hover:text-primary inline-flex items-center gap-1"
         >
-          <span className="truncate">{clipText(item.title, 20)}</span>
+          <span className="truncate">{clipText(item.title, 25)}</span>
           <ExternalLinkIcon />
         </a>
       </span>

@@ -173,25 +173,23 @@ const entryHref = calendarHref;
                   <span className="sr-only">重要</span>
                 </span>
               )}
-              {/* 小螢幕：m/d｜標題；sm 以上：日期｜分類｜標題（標題一律 25 字內＋單行不換行） */}
-              <div className="min-w-0 flex-1 sm:flex sm:items-center sm:gap-1.5">
-                <span className="block shrink-0 text-t2 sm:inline">
-                  <span className="sm:hidden">{shortDateLabel(item)}｜</span>
-                  <span className="hidden sm:inline">
-                    {dateLabel(item)}｜{item.categoryName}｜
-                  </span>
+              {/* 單行響應式：小螢幕 m/d｜標題；sm 以上 日期｜分類｜標題——日期不換行、標題 flex 伸縮截斷 */}
+              <span className="shrink-0 text-t2">
+                <span className="sm:hidden">{shortDateLabel(item)}｜</span>
+                <span className="hidden sm:inline">
+                  {dateLabel(item)}｜{item.categoryName}｜
                 </span>
-                <a
-                  href={`/calendar/${item.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="查看行程內容（新視窗）"
-                  className="inline-flex min-w-0 max-w-full items-center font-medium text-t1 hover:text-primary"
-                >
-                  <span className="truncate">{clipText(item.title, 25)}</span>
-                  <ExternalLinkIcon />
-                </a>
-              </div>
+              </span>
+              <a
+                href={`/calendar/${item.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="查看行程內容（新視窗）"
+                className="inline-flex min-w-0 flex-1 items-center font-medium text-t1 hover:text-primary"
+              >
+                <span className="truncate">{clipText(item.title, 25)}</span>
+                <ExternalLinkIcon />
+              </a>
             </li>
           </ul>
         </div>

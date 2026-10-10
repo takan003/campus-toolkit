@@ -53,10 +53,10 @@ export default async function PublicCalendarPage() {
                     </span>
                   )}
                   <span className="shrink-0 text-t2">{dateLabel(item)}</span>
-                  <span className="text-t2">｜</span>
+                  <span className="shrink-0 text-t2">｜</span>
                   <a
                     href={`/calendar/${item.id}`}
-                    className="inline-flex min-w-0 items-center font-medium text-t1 hover:text-primary"
+                    className="inline-flex min-w-0 flex-1 items-center font-medium text-t1 hover:text-primary"
                   >
                     <span className="truncate">{clipText(item.title, 25)}</span>
                   </a>

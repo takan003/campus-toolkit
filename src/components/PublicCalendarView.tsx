@@ -19,7 +19,7 @@ const MODE_LABELS: { key: ViewMode; label: string }[] = [
   { key: "list", label: "清單" },
 ];
 
-const WEEK_LABELS = ["一", "二", "三", "四", "五", "六", "日"];
+const WEEK_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
 const HOUR_H = 36; // 每小時列高（px）
 
 function startOfDay(d: Date): Date {
@@ -34,11 +34,10 @@ function addDays(d: Date, n: number): Date {
   return x;
 }
 
-/** 週起始＝週一 */
+/** 週起始＝週日（日一二三四五六） */
 function startOfWeek(d: Date): Date {
   const x = startOfDay(d);
-  const dow = (x.getDay() + 6) % 7;
-  return addDays(x, -dow);
+  return addDays(x, -x.getDay());
 }
 
 function startOfMonth(d: Date): Date {
@@ -132,9 +131,12 @@ function EventChip({ ev, showTime = false }: { ev: CalendarSurfaceItem; showTime
 export default function PublicCalendarView({
   initialItems,
   initialFrom,
+  earliestFrom,
 }: {
   initialItems: CalendarSurfaceItem[];
   initialFrom: number;
+  /** 最早可瀏覽區間起點（管理員設定的可回溯月數；‹ 鉗制於此） */
+  earliestFrom: number;
 }) {
   const [mode, setMode] = useState<ViewMode>("month");
   const [cursor, setCursor] = useState<Date>(() => new Date());
@@ -172,8 +174,15 @@ export default function PublicCalendarView({
     if (mode === "month" || mode === "list") x.setMonth(x.getMonth() + delta);
     else if (mode === "week") x.setDate(x.getDate() + delta * 7);
     else x.setDate(x.getDate() + delta);
+    // 回溯鉗制：往回不可越過管理員設定的最早可瀏覽月初
+    if (computeRange(mode, x).from < earliestFrom) {
+      setCursor(new Date(earliestFrom));
+      return;
+    }
     setCursor(x);
   }
+
+  const canGoPrev = range.from > earliestFrom;
 
   const monthWeeks = useMemo(() => {
     if (mode !== "month") return [];
@@ -213,8 +222,10 @@ export default function PublicCalendarView({
         <button
           type="button"
           onClick={() => shift(-1)}
-          className="px-2 py-1 rounded border border-themed text-t2 hover:text-t1 cursor-pointer"
+          disabled={!canGoPrev}
+          className="px-2 py-1 rounded border border-themed text-t2 hover:text-t1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           aria-label="上一段"
+          title={canGoPrev ? "上一段" : "已到最早可瀏覽月份"}
         >
           ‹
         </button>
@@ -331,7 +342,7 @@ export default function PublicCalendarView({
                         isToday ? "text-primary font-bold" : "text-t2"
                       }`}
                     >
-                      {WEEK_LABELS[(d.getDay() + 6) % 7]} {formatMD(d)}
+                      {WEEK_LABELS[d.getDay()]} {formatMD(d)}
                     </div>
                   );
                 })}

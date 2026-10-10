@@ -1,4 +1,5 @@
-import { listPublicCalendarEventsInRange } from "@/lib/calendar";
+import { getCalendarSettings, listPublicCalendarEventsInRange } from "@/lib/calendar";
+import { computePublicCalendarEarliestFrom } from "@/types/calendar";
 import { readSystemDoc } from "@/lib/settings-server";
 import { defaultSettings, type Settings } from "@/types/settings";
 import AdSense from "@/components/AdSense";
@@ -23,6 +24,10 @@ function currentMonthRange(): { from: number; to: number } {
 export default async function PublicCalendarPage() {
   const range = currentMonthRange();
   const initialItems = await listPublicCalendarEventsInRange(range.from, range.to);
+  const calendarSettings = await getCalendarSettings();
+  const earliestFrom = computePublicCalendarEarliestFrom(
+    calendarSettings.policies.publicPastMonths ?? 1
+  );
   const raw = await readSystemDoc();
   const settings = { ...defaultSettings, ...(raw ?? {}) } as Settings;
 
@@ -40,7 +45,11 @@ export default async function PublicCalendarPage() {
       {/* 行事曆顯示區：隨瀏覽器寬度響應（無固定最大寬） */}
       <div className="w-full mb-8">
         <h2 className="text-lg font-bold text-t1 mb-2">行事曆</h2>
-        <PublicCalendarView initialItems={initialItems} initialFrom={range.from} />
+        <PublicCalendarView
+          initialItems={initialItems}
+          initialFrom={range.from}
+          earliestFrom={earliestFrom}
+        />
       </div>
 
       {/* 廣告區域（比照登入首頁：系統設定開關控制） */}

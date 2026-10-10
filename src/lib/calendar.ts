@@ -28,6 +28,7 @@ import {
   audienceClassScoped,
   canViewCalendarEvent,
   CALENDAR_FALLBACK_CATEGORY_ID,
+  computePublicCalendarEarliestFrom,
   DEFAULT_CALENDAR_CATEGORIES,
   DEFAULT_CALENDAR_POLICIES,
   DEFAULT_CALENDAR_SETTINGS,
@@ -36,6 +37,7 @@ import {
   isCalendarEventActive,
   isCalendarEventPublicReadable,
   normalizeCalendarSurfaceLimit,
+  normalizePublicPastMonths,
   readCalendarEventRecord,
   readCalendarSettings,
   startOfTodayMs,
@@ -554,9 +556,12 @@ export async function listPublicCalendarEventsInRange(
   const cacheKey = `${LIST_CACHE_PREFIX}public:range:${dayBucket}:${toMs}:${take}`;
   return cachedRead(cacheKey, SURFACE_TTL_MS, async () => {
     const settings = await getCalendarSettings();
+    // 回溯限制【管理員設定 policies.publicPastMonths】：起點鉗制在允許的最早月初
+    const earliestFrom = computePublicCalendarEarliestFrom(settings.policies.publicPastMonths ?? 1);
+    const effectiveFrom = Math.max(fromMs, earliestFrom);
     const snap = await getAdminDb()
       .collection(CALENDAR_COLLECTION)
-      .where("startAt", ">=", fromMs)
+      .where("startAt", ">=", effectiveFrom)
       .where("startAt", "<=", toMs)
       .orderBy("startAt")
       .limit(take)
@@ -567,7 +572,7 @@ export async function listPublicCalendarEventsInRange(
       if (!record) continue;
       if (record.status !== "active") continue;
       if (!isCalendarEventPublicReadable(record)) continue;
-      if (calendarEventEnd(record) < fromMs) continue;
+      if (calendarEventEnd(record) < effectiveFrom) continue;
       records.push(record);
     }
     records.sort((a, b) => a.startAt - b.startAt || a.createdAt - b.createdAt);
@@ -636,6 +641,9 @@ export async function saveCalendarSettings(input: {
     const patch = input.policies;
     if (typeof patch.hardDeleteCancelled === "boolean") {
       policies.hardDeleteCancelled = patch.hardDeleteCancelled;
+    }
+    if (typeof patch.publicPastMonths === "number") {
+      policies.publicPastMonths = normalizePublicPastMonths(patch.publicPastMonths);
     }
   }
   const next: CalendarSettings = {

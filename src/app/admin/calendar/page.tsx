@@ -422,6 +422,32 @@ export default function AdminCalendarPage() {
                   }
                   hint="開啟後，取消（下架）的行程連同個人提醒一併從資料庫真實刪除（無法恢復）。關閉時僅隱藏保留：文件不顯示給任何身分，供來源模組對帳。"
                 />
+                <div className="flex flex-wrap items-center gap-2">
+                  <label htmlFor="pol-public-past" className="text-sm text-t1">
+                    公開行事曆可回溯月數
+                  </label>
+                  <input
+                    id="pol-public-past"
+                    type="number"
+                    min={0}
+                    max={12}
+                    step={1}
+                    value={policies.publicPastMonths}
+                    onChange={(e) =>
+                      setPolicies((prev) => ({
+                        ...prev,
+                        publicPastMonths: Math.min(
+                          12,
+                          Math.max(0, Math.round(Number(e.target.value) || 0))
+                        ),
+                      }))
+                    }
+                    className="input-theme rounded px-2 py-1 text-sm w-20"
+                  />
+                  <span className="text-xs text-t3">
+                    0＝僅本月起；預設 1＝本月＋上月；上限 12（影響未登入的公開行事曆頁可回溯幾个月）
+                  </span>
+                </div>
               </div>
               {/* 儲存設定與上方元件固定 10px 間距 */}
               <div className="mt-2.5">

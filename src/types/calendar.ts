@@ -112,14 +112,35 @@ export function defaultCalendarSurfaces(): CalendarSurfaces {
  * 行程原則（「規則設定」卡片設定）：
  * `hardDeleteCancelled`＝下架（取消）行程真實刪除——文件連同個人提醒一併刪除，
  * 關閉（預設）＝保留文件、僅不再顯示給任何身分（供來源模組對帳）。
+ * `publicPastMonths`＝公開行事曆可回溯月數（0＝僅本月起；預設 1＝本月＋上月；上限 12）。
  */
 export interface CalendarPolicies {
   hardDeleteCancelled: boolean;
+  publicPastMonths: number;
 }
 
 export const DEFAULT_CALENDAR_POLICIES: CalendarPolicies = {
   hardDeleteCancelled: false,
+  publicPastMonths: 1,
 };
+
+export const PUBLIC_PAST_MONTHS_MIN = 0;
+export const PUBLIC_PAST_MONTHS_MAX = 12;
+
+/** 寬容解析可回溯月數（非整數／超界一律退回預設 1） */
+export function normalizePublicPastMonths(value: unknown): number {
+  if (typeof value !== "number" || !Number.isInteger(value)) return DEFAULT_CALENDAR_POLICIES.publicPastMonths;
+  if (value < PUBLIC_PAST_MONTHS_MIN || value > PUBLIC_PAST_MONTHS_MAX) {
+    return DEFAULT_CALENDAR_POLICIES.publicPastMonths;
+  }
+  return value;
+}
+
+/** 公開行事曆最早可瀏覽區間的起點（月初；now 所在月往回 publicPastMonths 個月） */
+export function computePublicCalendarEarliestFrom(publicPastMonths: number, now: number = Date.now()): number {
+  const d = new Date(now);
+  return new Date(d.getFullYear(), d.getMonth() - normalizePublicPastMonths(publicPastMonths), 1).getTime();
+}
 
 export interface CalendarSettings {
   categories: CalendarCategory[];
@@ -693,6 +714,7 @@ export function readCalendarSettings(raw: unknown): CalendarSettings {
     if (typeof row.hardDeleteCancelled === "boolean") {
       policies.hardDeleteCancelled = row.hardDeleteCancelled;
     }
+    policies.publicPastMonths = normalizePublicPastMonths(row.publicPastMonths);
   }
 
   return {

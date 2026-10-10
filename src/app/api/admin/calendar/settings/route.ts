@@ -10,6 +10,7 @@ import {
   CALENDAR_SURFACES,
   CALENDAR_SURFACE_LIMIT_DEFAULT,
   DEFAULT_CALENDAR_POLICIES,
+  normalizePublicPastMonths,
 } from "@/types/calendar";
 
 const noStore = { "Cache-Control": "no-store" };
@@ -94,10 +95,16 @@ export async function PUT(request: NextRequest) {
     let policies: Partial<CalendarPolicies> | undefined;
     if (body.policies && typeof body.policies === "object") {
       const raw = body.policies as Record<string, unknown>;
-      policies =
-        typeof raw.hardDeleteCancelled === "boolean"
-          ? { hardDeleteCancelled: raw.hardDeleteCancelled }
-          : { hardDeleteCancelled: DEFAULT_CALENDAR_POLICIES.hardDeleteCancelled };
+      policies = {
+        hardDeleteCancelled:
+          typeof raw.hardDeleteCancelled === "boolean"
+            ? raw.hardDeleteCancelled
+            : DEFAULT_CALENDAR_POLICIES.hardDeleteCancelled,
+        publicPastMonths:
+          typeof raw.publicPastMonths === "number"
+            ? normalizePublicPastMonths(raw.publicPastMonths)
+            : DEFAULT_CALENDAR_POLICIES.publicPastMonths,
+      };
     }
 
     const settings = await saveCalendarSettings({

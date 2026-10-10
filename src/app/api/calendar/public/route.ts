@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { enforceRateLimit, RATE } from "@/lib/rate-limit";
 import { serverErrorMessage } from "@/lib/api-error";
-import { listPublicCalendarEventsInRange } from "@/lib/calendar";
+import { getCalendarSettings, listPublicCalendarEventsInRange } from "@/lib/calendar";
+import { computePublicCalendarEarliestFrom } from "@/types/calendar";
 
 export const dynamic = "force-dynamic";
 
@@ -31,8 +32,10 @@ export async function GET(request: NextRequest) {
     }
 
     const items = await listPublicCalendarEventsInRange(from, to);
+    const settings = await getCalendarSettings();
+    const earliestFrom = computePublicCalendarEarliestFrom(settings.policies.publicPastMonths ?? 1);
     return NextResponse.json(
-      { success: true, items },
+      { success: true, items, earliestFrom },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {

@@ -14,6 +14,7 @@ interface ThemeMarketEntry {
   latestVersion?: string;
   minHostVersion?: string;
   repoUrl?: string;
+  previewUrl?: string;
   downloadUrl?: string;
   checksumSha256?: string;
   category?: string;
@@ -219,6 +220,18 @@ export default function ThemeMarketPage() {
                   v{entry.version}
                 </span>
               </div>
+
+              {entry.previewUrl && (
+                <img
+                  src={entry.previewUrl}
+                  alt={`${entry.name} 主題預覽`}
+                  loading="lazy"
+                  className="w-full h-32 object-cover rounded-lg border border-themed bg-muted"
+                  onError={(event) => {
+                    event.currentTarget.style.display = "none";
+                  }}
+                />
+              )}
 
               <p className="text-sm text-t2">{entry.description || "沒有說明"}</p>
 

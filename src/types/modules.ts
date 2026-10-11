@@ -155,6 +155,16 @@ const HAND_MODULES = [
     children: [],
   },
   {
+    value: "themeMarket",
+    label: "主題市集",
+    category: "系統與紀錄",
+    description: "瀏覽與安裝外部主題市集的 CSS 主題，安裝前自動驗證 checksum、版本與下載來源。",
+    scope: "superOnly",
+    status: "built",
+    href: "/admin/theme-market",
+    children: [],
+  },
+  {
     value: "stats",
     label: "統計儀表板",
     category: "系統與紀錄",

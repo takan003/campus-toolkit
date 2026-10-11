@@ -33,6 +33,7 @@ export type ActivityAction =
   | "role_settings_updated"
   | "feature_module_updated"
   | "feature_module_role_updated"
+  | "theme_market_installed"
   | "school_org_updated"
   | "school_profile_updated"
   | "school_classes_updated"

@@ -134,7 +134,7 @@ export default function ThemeToggle() {
             color: "var(--t3)",
           }}
         >
-          共 {availableThemes.length} 款內建主題
+          共 {availableThemes.length} 款可用主題
         </div>
         </div>
       </div>

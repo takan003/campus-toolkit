@@ -34,6 +34,51 @@ export interface ThemeColors {
   '--transition': string;
 }
 
+/**
+ * 全域主題 token 白名單（＝ThemeColors 的鍵集合，市集主題契約 PROTOCOL §5.1 的唯一來源）。
+ * 主題市集安裝時解析出的 token 鍵必須屬於此清單，值必須通過安全驗證。
+ */
+export const THEME_COLOR_KEYS = [
+  '--bg',
+  '--bg2',
+  '--t1',
+  '--t2',
+  '--t3',
+  '--bd',
+  '--bd2',
+  '--card',
+  '--sh',
+  '--primary',
+  '--primary-hover',
+  '--primary-text',
+  '--primary-text-hover',
+  '--primary-block',
+  '--danger',
+  '--success',
+  '--warning',
+  '--btn-secondary',
+  '--btn-secondary-hover',
+  '--btn-secondary-text',
+  '--btn-secondary-text-hover',
+  '--btn-danger',
+  '--btn-danger-hover',
+  '--btn-danger-text',
+  '--btn-danger-text-hover',
+  '--btn-disabled',
+  '--btn-disabled-text',
+  '--link',
+  '--link-hover',
+  '--radius',
+  '--font-sans',
+  '--font-mono',
+  '--transition',
+] as const satisfies readonly (keyof ThemeColors)[];
+
+export type ThemeColorKey = (typeof THEME_COLOR_KEYS)[number];
+
+/** 市集主題最少必須覆寫的 token（身分與可讀性最低集合，契約 §5.1） */
+export const REQUIRED_MARKET_THEME_KEYS: readonly ThemeColorKey[] = ['--bg', '--card', '--t1'];
+
 export interface Theme {
   id: string;
   name: string;

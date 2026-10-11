@@ -211,6 +211,10 @@ const HAND_RATE = {
   FEATURE_MODULES_GET: { limit: 60, windowMs: 60_000 },
   /** 功能模組管理：總開關與各身分開關的切換（僅超級管理員，一列即有多個身分開關） */
   FEATURE_MODULES_MUTATE: { limit: 120, windowMs: 60_000 },
+  /** 主題市集：讀取外部市集索引 */
+  THEME_MARKET_GET: { limit: 60, windowMs: 60_000 },
+  /** 主題市集：安裝主題（下載＋checksum／版本／來源驗證） */
+  THEME_MARKET_MUTATE: { limit: 20, windowMs: 60_000 },
   /** 統計儀表板：讀取 Vercel／Firebase 用量（伺服器端另有 5 分鐘快取） */
   ADMIN_USAGE_GET: { limit: 30, windowMs: 60_000 },
   /** 公告：管理端清單／設定讀取 */

@@ -8,6 +8,7 @@ import Copyright from "@/components/Copyright";
 import AdSense from "@/components/AdSense";
 import HelpTooltip from "@/components/HelpTooltip";
 import { builtinThemes } from "@/lib/themes";
+import { listInstalledThemes } from "@/lib/theme-store";
 import { adoptCacheEpoch, fetchSettings, invalidateSettings } from "@/lib/settings-client";
 
 interface FormField {
@@ -25,7 +26,7 @@ interface SettingGroup {
   fields: FormField[];
 }
 
-const themeOptions = [
+const themeOptions: { value: string; label: string }[] = [
   { value: "", label: "不強制（用戶可自行選擇）" },
   ...builtinThemes.map((t) => ({ value: t.id, label: t.name })),
 ];
@@ -178,8 +179,19 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
+  const [, setThemeOptionsVersion] = useState(0);
 
   useEffect(() => {
+    // Step 12：強制主題選擇器納入本機已安裝的市集主題（market:）
+    let added = false;
+    for (const record of listInstalledThemes()) {
+      if (record.id.startsWith("market:") && !themeOptions.some((option) => option.value === record.id)) {
+        themeOptions.push({ value: record.id, label: `${record.name}（市集）` });
+        added = true;
+      }
+    }
+    if (added) setThemeOptionsVersion((version) => version + 1);
+
     loadSettings();
   }, []);
 

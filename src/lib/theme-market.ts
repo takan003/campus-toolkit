@@ -10,8 +10,13 @@
  */
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import crypto from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { THEME_COLOR_KEYS, REQUIRED_MARKET_THEME_KEYS } from "@/types/theme";
+import { parseThemeMarketIndex, ThemeMarketIndex } from "@/types/theme-market";
+import { defaultTheme } from "@/lib/themes";
 
 export const SUPPORTED_CONTRACT_VERSION = 1;
 
@@ -276,4 +281,266 @@ export function parseThemeCssVariables(css: string, themeId: string): Record<str
   }
 
   return colors;
+}
+
+/* ------------------------------------------------------------------ */
+/* 可重用流程：下載、解壓、解析、生成（安裝路由／內容端點／發佈共用）        */
+/* ------------------------------------------------------------------ */
+
+/** 主題套件下載上限（bytes，契約 §6-6 建議 5MB） */
+export const MAX_ARCHIVE_BYTES = 5 * 1024 * 1024;
+
+/** 解壓後總大小／檔案數上限（zip slip 與解壓炸彈防護） */
+const MAX_EXTRACTED_BYTES = 10 * 1024 * 1024;
+const MAX_EXTRACTED_FILES = 64;
+
+/** token 物件驗證（投稿／發佈 payload 用）：白名單＋必填鍵＋值安全 */
+export function validateColorTokens(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("colors 必須為物件（token → 值）");
+  }
+  const source = raw as Record<string, unknown>;
+  const colors: Record<string, string> = {};
+  for (const [key, value] of Object.entries(source)) {
+    const normalized = key.toLowerCase();
+    if (!(THEME_COLOR_KEYS as readonly string[]).includes(normalized)) {
+      throw new Error(`非白名單 token「${key}」（白名單見市集契約 §5.1）`);
+    }
+    if (typeof value !== "string") {
+      throw new Error(`${key} 的值必須為字串`);
+    }
+    colors[normalized] = assertSafeThemeColorValue(normalized, value);
+  }
+  for (const requiredKey of REQUIRED_MARKET_THEME_KEYS) {
+    if (!(requiredKey in colors)) {
+      throw new Error(`缺少必填 token「${requiredKey}」`);
+    }
+  }
+  return colors;
+}
+
+/** 由 token 物件生成 styles.css（契約 §5.2/§5.4，輸出格式固定） */
+export function generateThemeCss(themeId: string, colors: Record<string, string>): string {
+  const lines = THEME_COLOR_KEYS.filter((key) => colors[key]).map((key) => `  ${key}: ${colors[key]};`);
+  return `html[data-theme="${themeId}"] {\n${lines.join("\n")}\n}\n`;
+}
+
+function assertInsideDir(root: string, target: string): void {
+  const relative = path.relative(root, target);
+  if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error("壓縮檔含路徑穿越（zip slip），拒絕安裝");
+  }
+}
+
+function walkExtracted(root: string): void {
+  let totalBytes = 0;
+  let fileCount = 0;
+
+  function walk(dir: string) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      assertInsideDir(root, full);
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (entry.isFile()) {
+        fileCount += 1;
+        if (fileCount > MAX_EXTRACTED_FILES) {
+          throw new Error(`主題包檔案數過多（超過 ${MAX_EXTRACTED_FILES} 個），拒絕安裝`);
+        }
+        totalBytes += fs.statSync(full).size;
+        if (totalBytes > MAX_EXTRACTED_BYTES) {
+          throw new Error(`主題包解壓後過大（超過 ${MAX_EXTRACTED_BYTES / 1024 / 1024}MB），拒絕安裝`);
+        }
+      }
+    }
+  }
+
+  walk(root);
+}
+
+/** 下載主題 zip 並驗證 sha256（含 URL 安全檢查與大小上限） */
+export async function downloadThemeZip(
+  downloadUrl: string,
+  expectedSha256: string
+): Promise<{ filePath: string; sha256: string }> {
+  const url = assertSafeThemeDownloadUrl(downloadUrl);
+  if (!url.pathname.toLowerCase().endsWith(".zip")) {
+    throw new Error("主題下載檔必須為 .zip");
+  }
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "campus-theme-market-"));
+  const filePath = path.join(tempDir, "theme.zip");
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60_000);
+  let response: Response;
+  try {
+    response = await fetch(url, { cache: "no-store", signal: controller.signal, redirect: "error" });
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!response.ok) {
+    throw new Error(`下載失敗（HTTP ${response.status}）`);
+  }
+
+  const declared = Number(response.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declared) && declared > MAX_ARCHIVE_BYTES) {
+    throw new Error(`主題套件過大（超過 ${MAX_ARCHIVE_BYTES / 1024 / 1024}MB 上限）`);
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  if (arrayBuffer.byteLength > MAX_ARCHIVE_BYTES) {
+    throw new Error(`主題套件過大（超過 ${MAX_ARCHIVE_BYTES / 1024 / 1024}MB 上限）`);
+  }
+  const buffer = Buffer.from(arrayBuffer);
+  fs.writeFileSync(filePath, buffer);
+
+  const sha256 = crypto.createHash("sha256").update(buffer).digest("hex");
+  if (sha256 !== expectedSha256.toLowerCase()) {
+    throw new Error("套件完整性校驗失敗（sha256 不符）——拒絕安裝");
+  }
+  return { filePath, sha256 };
+}
+
+/** 解壓 zip（含 zip slip／解壓炸彈防護），回傳解壓根目錄 */
+export function extractThemeZip(filePath: string): string {
+  const dir = path.join(path.dirname(filePath), "extracted");
+  fs.mkdirSync(dir, { recursive: true });
+
+  if (process.platform === "win32") {
+    const result = spawnSync(
+      "powershell",
+      [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        `Expand-Archive -Path '${filePath}' -DestinationPath '${dir}' -Force`,
+      ],
+      { encoding: "utf-8" }
+    );
+    if (result.status !== 0) {
+      throw new Error(result.stderr?.toString() || "ZIP 解壓失敗");
+    }
+  } else {
+    const result = spawnSync("unzip", ["-q", filePath, "-d", dir], { encoding: "utf-8" });
+    if (result.status !== 0) {
+      throw new Error(result.stderr?.toString() || "ZIP 解壓失敗");
+    }
+  }
+
+  walkExtracted(dir);
+  return dir;
+}
+
+export function findThemeManifestRoot(sourceDir: string): string {
+  if (fs.existsSync(path.join(sourceDir, "theme.json"))) return sourceDir;
+
+  for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    if (fs.existsSync(path.join(sourceDir, entry.name, "theme.json"))) {
+      return path.join(sourceDir, entry.name);
+    }
+  }
+
+  throw new Error("主題包中未找到 theme.json");
+}
+
+export interface LoadedThemePackage {
+  manifest: ThemeManifest;
+  colors: import("@/types/theme").ThemeColors;
+  checksumSha256?: string;
+}
+
+/** 讀取並驗證解壓目錄中的主題包（theme.json → manifest、styles.css → colors 以預設補底） */
+export function loadThemePackage(
+  workingDir: string,
+  expectedId: string,
+  options: { expectedVersion?: string; checksumSha256?: string } = {}
+): LoadedThemePackage {
+  const manifestPath = path.join(workingDir, "theme.json");
+  const manifestRaw = fs.readFileSync(manifestPath);
+  if (manifestRaw.byteLength > MAX_THEME_JSON_BYTES) {
+    throw new Error("theme.json 過大（超過 32KB），拒絕安裝");
+  }
+  let manifestJson: unknown;
+  try {
+    manifestJson = JSON.parse(manifestRaw.toString("utf-8").replace(/^﻿/, ""));
+  } catch {
+    throw new Error("theme.json 無法解析為 JSON");
+  }
+  const manifest = validateThemeManifest(manifestJson, expectedId);
+
+  if (options.expectedVersion && manifest.version !== options.expectedVersion) {
+    throw new Error(
+      `主題版本不一致（索引為 ${options.expectedVersion}、套件為 ${manifest.version}）——拒絕安裝`
+    );
+  }
+
+  const hostVersion = readHostVersion();
+  if (!versionAtLeast(hostVersion, manifest.minHostVersion)) {
+    throw new Error(
+      `主程式版本 ${hostVersion} 低於主題最低需求 ${manifest.minHostVersion}——拒絕安裝`
+    );
+  }
+
+  const cssPath = path.join(workingDir, manifest.cssFile);
+  if (!fs.existsSync(cssPath)) {
+    throw new Error(`主題包缺少樣式檔 ${manifest.cssFile}`);
+  }
+  const cssRaw = fs.readFileSync(cssPath);
+  if (cssRaw.byteLength > MAX_CSS_BYTES) {
+    throw new Error("styles.css 過大（超過 64KB），拒絕安裝");
+  }
+  const parsedColors = parseThemeCssVariables(cssRaw.toString("utf-8"), manifest.themeId);
+
+  return {
+    manifest,
+    colors: { ...defaultTheme.colors, ...parsedColors } as unknown as import("@/types/theme").ThemeColors,
+    checksumSha256: options.checksumSha256,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* 市集索引快取（內容端點與發佈檢查共用，避免每次請求重抓）                */
+/* ------------------------------------------------------------------ */
+
+const INDEX_CACHE_TTL_MS = 5 * 60 * 1000;
+let indexCache: { at: number; url: string; index: ThemeMarketIndex } | null = null;
+
+/** 抓取市集索引（5 分鐘記憶體快取；來源不可用時若持有過期快取則降級使用） */
+export async function fetchThemeMarketIndex(): Promise<ThemeMarketIndex> {
+  const marketUrl = resolveThemeMarketIndexUrl();
+  if (!marketUrl) {
+    throw new Error("尚未設定 THEME_MARKET_INDEX_URL");
+  }
+
+  const now = Date.now();
+  if (indexCache && indexCache.url === marketUrl && now - indexCache.at < INDEX_CACHE_TTL_MS) {
+    return indexCache.index;
+  }
+
+  try {
+    const response = await fetch(marketUrl, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      throw new Error(`市集來源回應失敗（HTTP ${response.status}）`);
+    }
+    const text = await response.text();
+    if (new TextEncoder().encode(text).length > 512 * 1024) {
+      throw new Error("市集資料過大");
+    }
+    const parsed = parseThemeMarketIndex(JSON.parse(text));
+    if (!parsed) {
+      throw new Error("市集 index.json 缺少有效的 modules 清單");
+    }
+    indexCache = { at: now, url: marketUrl, index: parsed };
+    return parsed;
+  } catch (error) {
+    if (indexCache && indexCache.url === marketUrl) {
+      return indexCache.index;
+    }
+    throw error;
+  }
 }

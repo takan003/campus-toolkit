@@ -128,13 +128,16 @@ export default function ThemeToggle() {
 
         {/* 底部說明 */}
         <div
-          className="p-4 text-xs"
+          className="p-4 text-xs space-y-1"
           style={{
             borderTop: "1px solid var(--bd)",
             color: "var(--t3)",
           }}
         >
-          共 {availableThemes.length} 款可用主題
+          <div>共 {availableThemes.length} 款可用主題</div>
+          <a href="/theme-submit" className="underline" style={{ color: "var(--link)" }}>
+            投稿我的主題 →
+          </a>
         </div>
         </div>
       </div>

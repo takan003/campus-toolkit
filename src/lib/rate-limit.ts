@@ -215,6 +215,16 @@ const HAND_RATE = {
   THEME_MARKET_GET: { limit: 60, windowMs: 60_000 },
   /** 主題市集：安裝主題（下載＋checksum／版本／來源驗證） */
   THEME_MARKET_MUTATE: { limit: 20, windowMs: 60_000 },
+  /** 主題市集：主題內容取回（登入者，含下載驗證與記憶體快取） */
+  MARKET_THEME_GET: { limit: 30, windowMs: 60_000 },
+  /** 個人主題偏好：讀取 */
+  ME_THEME_GET: { limit: 60, windowMs: 60_000 },
+  /** 個人主題偏好：儲存（themeId／已安裝清單） */
+  ME_THEME_MUTATE: { limit: 30, windowMs: 60_000 },
+  /** 主題市集：管理員發佈（服務帳號開 PR） */
+  THEME_MARKET_PUBLISH: { limit: 10, windowMs: 60_000 },
+  /** 主題市集：使用者投稿（draft PR） */
+  THEME_MARKET_SUBMIT: { limit: 5, windowMs: 60 * 60_000 },
   /** 統計儀表板：讀取 Vercel／Firebase 用量（伺服器端另有 5 分鐘快取） */
   ADMIN_USAGE_GET: { limit: 30, windowMs: 60_000 },
   /** 公告：管理端清單／設定讀取 */

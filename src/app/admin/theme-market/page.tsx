@@ -3,7 +3,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/contexts/ThemeContext";
-import { isThemeInstalled, saveInstalledTheme } from "@/lib/theme-store";
+import {
+  InstalledThemeRecord,
+  listInstalledThemes,
+  removeInstalledTheme,
+  saveInstalledTheme,
+  syncInstalledThemesToAccount,
+} from "@/lib/theme-store";
+import ThemeSubmissionForm from "@/components/ThemeSubmissionForm";
 import { ThemeColors } from "@/types/theme";
 
 interface ThemeMarketEntry {
@@ -137,6 +144,7 @@ export default function ThemeMarketPage() {
       );
 
       setInstalledTick((tick) => tick + 1);
+      void syncInstalledThemesToAccount();
       setActionKind("success");
       setActionMessage(data.message || "安裝完成");
     } catch (installError) {
@@ -153,9 +161,27 @@ export default function ThemeMarketPage() {
     setActionMessage(`已套用主題「${entry.name}」`);
   }
 
-  function isInstalled(entry: ThemeMarketEntry): boolean {
+  function installedRecord(entry: ThemeMarketEntry): InstalledThemeRecord | undefined {
     void installedTick;
-    return isThemeInstalled(`market:${entry.id}`);
+    return listInstalledThemes().find((item) => item.id === `market:${entry.id}`);
+  }
+
+  function isInstalled(entry: ThemeMarketEntry): boolean {
+    return !!installedRecord(entry);
+  }
+
+  function hasUpdate(entry: ThemeMarketEntry): boolean {
+    const record = installedRecord(entry);
+    if (!record || !entry.latestVersion) return false;
+    return record.version !== entry.latestVersion;
+  }
+
+  function handleUninstall(entry: ThemeMarketEntry) {
+    removeInstalledTheme(`market:${entry.id}`);
+    void syncInstalledThemesToAccount();
+    setInstalledTick((tick) => tick + 1);
+    setActionKind("success");
+    setActionMessage(`已卸載主題「${entry.name}」`);
   }
 
   function isCurrent(entry: ThemeMarketEntry): boolean {
@@ -246,6 +272,11 @@ export default function ThemeMarketPage() {
                     {isCurrent(entry) ? "使用中" : "已安裝"}
                   </span>
                 )}
+                {hasUpdate(entry) && (
+                  <span className="border border-warning/60 rounded px-2 py-1 text-warning">
+                    有新版本 v{entry.latestVersion}
+                  </span>
+                )}
               </div>
 
               {entry.tags && entry.tags.length > 0 && (
@@ -278,16 +309,27 @@ export default function ThemeMarketPage() {
                       查看 Repo
                     </a>
                   )}
-                  {isInstalled(entry) && !isCurrent(entry) ? (
-                    <button
-                      type="button"
-                      onClick={() => handleApply(entry)}
-                      className="btn-theme rounded px-3 py-1.5 text-xs cursor-pointer"
-                      title="套用此主題"
-                    >
-                      套用
-                    </button>
-                  ) : (
+                  {isInstalled(entry) && !isCurrent(entry) && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleApply(entry)}
+                        className="btn-theme rounded px-3 py-1.5 text-xs cursor-pointer"
+                        title="套用此主題"
+                      >
+                        套用
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUninstall(entry)}
+                        className="rounded px-3 py-1.5 text-xs border border-danger/60 text-danger cursor-pointer"
+                        title="從本機移除主題"
+                      >
+                        卸載
+                      </button>
+                    </>
+                  )}
+                  {!isInstalled(entry) || isCurrent(entry) ? (
                     <button
                       type="button"
                       disabled={installingId === entry.id || isCurrent(entry)}
@@ -303,17 +345,28 @@ export default function ThemeMarketPage() {
                         ? "安裝中..."
                         : isCurrent(entry)
                           ? "使用中"
-                          : isInstalled(entry)
-                            ? "重新安裝"
+                          : hasUpdate(entry)
+                            ? "更新"
                             : "安裝"}
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <details className="border border-themed rounded-lg bg-card p-5">
+        <summary className="cursor-pointer font-bold text-t1">
+          上架新主題（管理員發佈 → PR 審核 → merge 上架）
+        </summary>
+        <p className="mt-2 mb-4 text-xs text-t3">
+          發佈會以服務帳號對市集 repo 建立 PR；CI 驗證通過並經您 merge 後，主題即出現在市集索引中。
+          此功能需伺服器設定 THEME_MARKET_GITHUB_TOKEN。
+        </p>
+        <ThemeSubmissionForm endpoint="/api/admin/theme-market/publish" submitLabel="建立發佈 PR" />
+      </details>
     </div>
   );
 }

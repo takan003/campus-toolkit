@@ -6,7 +6,9 @@
  * - 已安裝清單 → localStorage `campusThemeInstalled`
  * - 帳號層 themeId 同步為 Phase 4（users.cssThemeId），本層先負責本機快取
  *
- * 鍵名沿用 docs/CSS主題個性化規劃書.md §4。
+ * 鍵名為歷史命名（與早期 CSS 主題規劃一致），既有使用者快取相容，勿任意變更：
+ * - 主題內容 → localStorage `campusTheme_{themeId}`
+ * - 已安裝清單 → localStorage `campusThemeInstalled`
  */
 
 import { Theme, ThemeColors, THEME_COLOR_KEYS } from "@/types/theme";
